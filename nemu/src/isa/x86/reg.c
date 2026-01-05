@@ -24,13 +24,12 @@ void reg_test() {
   word_t sample[8];
   word_t pc_sample = rand();
   cpu.pc = pc_sample;
-
+  printf("nihi");
   int i;
   for (i = R_EAX; i <= R_EDI; i ++) {
     sample[i] = rand();
     reg_l(i) = sample[i];
     assert(reg_w(i) == (sample[i] & 0xffff));
-    printf("nihi");
   }
 
   assert(reg_b(R_AL) == (sample[R_EAX] & 0xff));
