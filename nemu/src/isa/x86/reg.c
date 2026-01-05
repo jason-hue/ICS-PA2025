@@ -24,7 +24,7 @@ void reg_test() {
   word_t sample[8];
   word_t pc_sample = rand();
   cpu.pc = pc_sample;
-  printf("nihi");
+
   int i;
   for (i = R_EAX; i <= R_EDI; i ++) {
     sample[i] = rand();
