@@ -30,6 +30,7 @@ void reg_test() {
     sample[i] = rand();
     reg_l(i) = sample[i];
     assert(reg_w(i) == (sample[i] & 0xffff));
+    printf("nihi");
   }
 
   assert(reg_b(R_AL) == (sample[R_EAX] & 0xff));
