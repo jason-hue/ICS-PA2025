@@ -50,7 +50,7 @@ static int cmd_c(char *args) {
 
 
 static int cmd_q(char *args) {
-  nemu_state.state = NEMU_QUIT;
+  nemu_state.state = NEMU_QUIT; //添加这条后直接输入“q”make就不会报错了。
   return -1;
 }
 
@@ -67,7 +67,7 @@ static struct {
 
   /* TODO: Add more commands */
 
-};
+};//回调函数
 
 #define NR_CMD ARRLEN(cmd_table)
 
