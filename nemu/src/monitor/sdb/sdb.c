@@ -57,6 +57,18 @@ static int cmd_si(char *args)
   cpu_exec(step);
   return 0;
 }
+static int cmd_info(char *args)
+{
+  switch (*args)
+  {
+    case 'r':
+      isa_reg_display();
+      break;
+    case 'w':
+      break;
+  }
+  return 0;
+}
 
 
 static int cmd_q(char *args) {
@@ -75,6 +87,7 @@ static struct {
   { "c", "Continue the execution of the program", cmd_c },
   { "q", "Exit NEMU", cmd_q },
   {"si","Single step execution for N instructions, default is 1",cmd_si},
+  {"info","Print program state (r: registers, w: watchpoints)",cmd_info},
   /* TODO: Add more commands */
 
 };//回调函数
