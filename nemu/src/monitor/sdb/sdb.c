@@ -96,7 +96,8 @@ static int cmd_x(char *args)
   }
   int n = atoi(n_str);
   vaddr_t vaddr = (vaddr_t) strtoul(addr_str, NULL, 16);
-  if (n_str == NULL || addr_str == NULL) {
+  if (n <= 0) {
+    printf("Invalid N: N must be a positive integer.\n");
     printf("Usage: x N EXPR\n");
     return 0;
   }
