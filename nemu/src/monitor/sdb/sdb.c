@@ -49,7 +49,7 @@ static int cmd_c(char *args) {
 }
 static int cmd_si(char *args)
 {
-
+  printf("sisisisisi\n");
   return 0;
 }
 
