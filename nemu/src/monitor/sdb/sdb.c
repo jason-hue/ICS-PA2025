@@ -59,12 +59,10 @@ static int cmd_si(char *args)
 }
 static int cmd_info(char *args)
 {
-  if (args == NULL)
+  if (args != NULL)
   {
-    printf("Usage: info [r|w] (r=view registers, w=view watchpoints)\n");
-  }
-  switch (*args)
-  {
+    switch (*args)
+    {
     case 'r':
       isa_reg_display();
       break;
@@ -73,7 +71,12 @@ static int cmd_info(char *args)
     default:
       printf("Invalid parameter! Usage: info [r|w]\n");
       break;
+    }
+  }else
+  {
+    printf("Usage: info [r|w] (r=view registers, w=view watchpoints)\n");
   }
+
   return 0;
 }
 
