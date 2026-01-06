@@ -47,6 +47,11 @@ static int cmd_c(char *args) {
   cpu_exec(-1);
   return 0;
 }
+static int cmd_si(char *args)
+{
+
+  return 0;
+}
 
 
 static int cmd_q(char *args) {
@@ -64,7 +69,7 @@ static struct {
   { "help", "Display information about all supported commands", cmd_help },
   { "c", "Continue the execution of the program", cmd_c },
   { "q", "Exit NEMU", cmd_q },
-
+  {"si","Single step execution for N instructions, default is 1",cmd_si},
   /* TODO: Add more commands */
 
 };//回调函数
@@ -108,13 +113,13 @@ void sdb_mainloop() {
     char *str_end = str + strlen(str);
 
     /* extract the first token as the command */
-    char *cmd = strtok(str, " ");
+    char *cmd = strtok(str, " ");//按空格分隔出第一个命令，将空格换成\0
     if (cmd == NULL) { continue; }
 
     /* treat the remaining string as the arguments,
      * which may need further parsing
      */
-    char *args = cmd + strlen(cmd) + 1;
+    char *args = cmd + strlen(cmd) + 1;//计算出第一个命令后的option的首地址
     if (args >= str_end) {
       args = NULL;
     }
@@ -130,7 +135,7 @@ void sdb_mainloop() {
         if (cmd_table[i].handler(args) < 0) { return; }
         break;
       }
-    }
+    }//将输入的命令和内置命令匹配
 
     if (i == NR_CMD) { printf("Unknown command '%s'\n", cmd); }
   }
