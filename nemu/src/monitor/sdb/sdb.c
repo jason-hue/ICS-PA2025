@@ -49,7 +49,12 @@ static int cmd_c(char *args) {
 }
 static int cmd_si(char *args)
 {
-  printf("sisisisisi\n");
+  int step = 1;
+  if (args != NULL)
+  {
+    step = atoi(args);
+  }
+  cpu_exec(step);
   return 0;
 }
 
