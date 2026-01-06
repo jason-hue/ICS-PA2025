@@ -54,7 +54,11 @@ void reg_test() {
 }
 
 void isa_reg_display() {
-  printf("hello\n");
+  printf("=== Register Information ===\n");
+  for (int i = R_EAX; i <= R_EDI; i++) {
+    printf("%-3s = 0x%08x\n", regsl[i], reg_l(i));
+  }
+  printf("pc  = 0x%08x\n", cpu.pc);
 }
 
 word_t isa_reg_str2val(const char *s, bool *success) {
