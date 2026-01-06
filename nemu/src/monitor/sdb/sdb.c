@@ -20,6 +20,8 @@
 #include <readline/history.h>
 #include "sdb.h"
 
+#include <memory/vaddr.h>
+
 static int is_batch_mode = false;
 
 void init_regex();
@@ -67,6 +69,7 @@ static int cmd_info(char *args)
       isa_reg_display();
       break;
     case 'w':
+      /* TODO */
       break;
     default:
       printf("Invalid parameter! Usage: info [r|w]\n");
@@ -76,10 +79,30 @@ static int cmd_info(char *args)
   {
     printf("Usage: info [r|w] (r=view registers, w=view watchpoints)\n");
   }
-
   return 0;
 }
 
+static int cmd_x(char *args)
+{
+  if (args == NULL) {
+    printf("Usage: x N EXPR\n");
+    return 0;
+  }
+  char *n_str = strtok(args, " ");
+  char *addr_str = strtok(NULL, " ");
+  int n = atoi(n_str);
+  vaddr_t vaddr = (vaddr_t) strtoul(addr_str, NULL, 16);
+  if (n_str == NULL || addr_str == NULL) {
+    printf("Usage: x N EXPR\n");
+    return 0;
+  }
+  for (int i = 0; i < n; i++)
+  {
+    uint32_t data = vaddr_read(vaddr + i*4,4);
+    printf("0x%08x: 0x%08x\n",vaddr + i*4,data);
+  }
+  return 0;
+}
 
 static int cmd_q(char *args) {
   nemu_state.state = NEMU_QUIT; //添加这条后直接输入“q”make就不会报错了。
@@ -98,6 +121,7 @@ static struct {
   { "q", "Exit NEMU", cmd_q },
   {"si","Single step execution for N instructions, default is 1",cmd_si},
   {"info","Print program state (r: registers, w: watchpoints)",cmd_info},
+  {"x","Examine memory (N 4-byte words starting from expression result)",cmd_x}
   /* TODO: Add more commands */
 
 };//回调函数
