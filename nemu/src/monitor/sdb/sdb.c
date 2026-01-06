@@ -90,6 +90,10 @@ static int cmd_x(char *args)
   }
   char *n_str = strtok(args, " ");
   char *addr_str = strtok(NULL, " ");
+  if (n_str == NULL || addr_str == NULL) {
+    printf("Usage: x N EXPR\n");
+    return 0;
+  }
   int n = atoi(n_str);
   vaddr_t vaddr = (vaddr_t) strtoul(addr_str, NULL, 16);
   if (n_str == NULL || addr_str == NULL) {
