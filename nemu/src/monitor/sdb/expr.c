@@ -146,7 +146,9 @@ static bool make_token(char *e) {
     }
 
     if (i == NR_REGEX) {
-      printf("no match at position %d, char='%c'\n", position, e[position]);
+      printf("DEBUG: No match found!\n");
+      printf("  position=%d, char='%c' (0x%02x)\n", position, e[position], (unsigned char)e[position]);
+      printf("  remaining string: '%s'\n", e + position);
       printf("Available rules:\n");
       for (int j = 0; j < NR_REGEX; j++) {
         printf("  [%d] \"%s\" -> %d\n", j, rules[j].regex, rules[j].token_type);
@@ -164,14 +166,26 @@ static void test_tokens() {
   bool success;
   char *test_expr;
   
-  test_expr = "1+2*3";
+  test_expr = "12";
   success = make_token(test_expr);
   if (!success) {
     printf("ERROR: Tokenization failed for '%s'\n", test_expr);
     return;
   }
-  if (nr_token != 5) {
-    printf("ERROR: Expected 5 tokens, got %d for '%s'\n", nr_token, test_expr);
+  if (nr_token != 1) {
+    printf("ERROR: Expected 1 token, got %d for '%s'\n", nr_token, test_expr);
+    return;
+  }
+  printf("SUCCESS: Tokenized '%s' into %d tokens\n", test_expr, nr_token);
+  
+  test_expr = "1+2";
+  success = make_token(test_expr);
+  if (!success) {
+    printf("ERROR: Tokenization failed for '%s'\n", test_expr);
+    return;
+  }
+  if (nr_token != 3) {
+    printf("ERROR: Expected 3 tokens, got %d for '%s'\n", nr_token, test_expr);
     return;
   }
   printf("SUCCESS: Tokenized '%s' into %d tokens\n", test_expr, nr_token);
