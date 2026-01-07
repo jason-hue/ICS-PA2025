@@ -76,13 +76,37 @@ word_t isa_reg_str2val(const char *s, bool *success) {
   char *reg_name_to_lower = (char *)reg_name;
   to_lower(reg_name_to_lower);
   // Compare with each register name
+  // 首先检查32位寄存器 (regsl)
+  for (int i = 0; i < sizeof(regsl)/sizeof(regsl[0]); i++) {
+    if (strcmp(reg_name, regsl[i]) == 0) {
+      if (success) *success = true;
+      return reg_l(i);  // 返回完整的32位值
+    }
+  }
+
+  // 然后检查16位寄存器 (regsw)
+  for (int i = 0; i < sizeof(regsw)/sizeof(regsw[0]); i++) {
+    if (strcmp(reg_name, regsw[i]) == 0) {
+      if (success) *success = true;
+      return reg_w(i) & 0xffff;  // 返回16位值
+    }
+  }
+
+  // 接着检查8位寄存器 (regsb)
   for (int i = 0; i < sizeof(regsb)/sizeof(regsb[0]); i++) {
     if (strcmp(reg_name, regsb[i]) == 0) {
       if (success) *success = true;
-      return reg_l(i) & 0xff;
+      return reg_b(i) & 0xff;  // 返回8位值
     }
   }
-  
+
+  // 检查pc寄存器
+  if (strcmp(reg_name, "pc") == 0) {
+    if (success) *success = true;
+    return cpu.pc;
+  }
+
+  // 没有找到匹配的寄存器
   if (success) *success = false;
   return 0;
 }
