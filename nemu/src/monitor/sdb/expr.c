@@ -100,8 +100,8 @@ static bool make_token(char *e) {
         char *substr_start = e + position;
         int substr_len = pmatch.rm_eo;
 
-        // Log("match rules[%d] = \"%s\" at position %d with len %d: %.*s",
-        //     i, rules[i].regex, position, substr_len, substr_len, substr_start);
+        Log("match rules[%d] = \"%s\" at position %d with len %d: %.*s",
+            i, rules[i].regex, position, substr_len, substr_len, substr_start);
 
         position += substr_len;
 
@@ -162,6 +162,7 @@ static bool make_token(char *e) {
   return true;
 }
 
+
 static void test_tokens() {
   const char *numbers[] = {"123", "456", "789", "0x123", "0xABC", "0xff"};
   const char *registers[] = {"$eax", "$ebx", "$ecx", "$edx", "$esp", "$ebp"};
@@ -220,136 +221,10 @@ static void test_tokens() {
     printf("Some tests failed. Check the implementation.\n");
   }
 }
-
-static bool check_parentheses_match(int p, int q) {
-  int balance = 0;
-  for (int i = p; i <= q; i++) {
-    if (tokens[i].type == TK_LPAREN) {
-      balance++;
-    } else if (tokens[i].type == TK_RPAREN) {
-      balance--;
-    }
-    if (balance < 0) return false;
-  }
-  return balance == 0;
-}
-
-static int get_precedence(int op_type) {
-  switch (op_type) {
-    case TK_EQ: return 1;
-    case '+': case '-': return 2;
-    case '*': case '/': return 3;
-    default: return 0;
-  }
-}
-
-static int find_main_operator(int p, int q) {
-  int min_prec = 100;
-  int main_op = -1;
-  int paren_balance = 0;
-  
-  for (int i = p; i <= q; i++) {
-    if (tokens[i].type == TK_LPAREN) {
-      paren_balance++;
-    } else if (tokens[i].type == TK_RPAREN) {
-      paren_balance--;
-    }
-    
-    if (paren_balance == 0 && 
-        (tokens[i].type == '+' || tokens[i].type == '-' || 
-         tokens[i].type == '*' || tokens[i].type == '/' || 
-         tokens[i].type == TK_EQ)) {
-      int prec = get_precedence(tokens[i].type);
-      if (prec <= min_prec) {
-        min_prec = prec;
-        main_op = i;
-      }
-    }
-  }
-  return main_op;
-}
-
-static word_t get_token_value(int idx, bool *success) {
-  if (idx < 0 || idx >= nr_token) {
-    *success = false;
-    return 0;
-  }
-  
-  if (tokens[idx].type == TK_NUM) {
-    char *endptr;
-    word_t val = strtoul(tokens[idx].str, &endptr, 0);
-    if (*endptr != '\0') {
-      *success = false;
-      return 0;
-    }
-    *success = true;
-    return val;
-} else if (tokens[idx].type == TK_REG) {
-    // TODO: Implement register lookup when isa_reg_str2val is available
-    *success = false;
-    return 0;
-  } else {
-    *success = false;
-    return 0;
-  }
-}
-
-static word_t compute_operator(word_t val1, int op_type, word_t val2, bool *success) {
-  switch (op_type) {
-    case '+':
-      *success = true;
-      return val1 + val2;
-    case '-':
-      *success = true;
-      return val1 - val2;
-    case '*':
-      *success = true;
-      return val1 * val2;
-    case '/':
-      if (val2 == 0) {
-        *success = false;
-        return 0;
-      }
-      *success = true;
-      return val1 / val2;
-    case TK_EQ:
-      *success = true;
-      return val1 == val2;
-    default:
-      *success = false;
-      return 0;
-  }
-}
-
-static word_t eval(int p, int q, bool *success) {
-  if (p > q) {
-    *success = false;
-    return 0;
-  }
-  
-  if (p == q) {
-    return get_token_value(p, success);
-  }
-  
-  if (tokens[p].type == TK_LPAREN && tokens[q].type == TK_RPAREN) {
-    if (check_parentheses_match(p, q)) {
-      return eval(p + 1, q - 1, success);
-    }
-  }
-  
-  int main_op = find_main_operator(p, q);
-  if (main_op != -1) {
-    word_t val1 = eval(p, main_op - 1, success);
-    if (!*success) return 0;
-    
-    word_t val2 = eval(main_op + 1, q, success);
-    if (!*success) return 0;
-    
-    return compute_operator(val1, tokens[main_op].type, val2, success);
-  }
-  
-  *success = false;
-  return 0;
+  assert(nr_token == 3);
+  assert(tokens[0].type == TK_REG && strcmp(tokens[0].str, "$eax") == 0);
+  assert(tokens[1].type == '+');
+  assert(tokens[2].type == TK_REG && strcmp(tokens[2].str, "$ecx") == 0);
 }
 
 word_t expr(char *e, bool *success) {
@@ -358,10 +233,7 @@ word_t expr(char *e, bool *success) {
     return 0;
   }
 
-  if (nr_token == 0) {
-    *success = false;
-    return 0;
-  }
-
-  return eval(0, nr_token - 1, success);
+  /* TODO: Insert codes to evaluate the expression. */
+  *success = false;
+  return 0;
 }
