@@ -227,7 +227,109 @@ static void test_tokens() {
   printf("Token testing passed!\n");
 }
 
+bool check_parentheses(int p, int q)
+{
+  if (tokens[p].type == TK_LPAREN && tokens[q].type == TK_RPAREN)
+  {
+    int balance = 0;
+    for (int j = p; j <= q; j++)
+    {
+      if (tokens[j].type == TK_LPAREN)
+      {
+        balance++;
+      }else if (tokens[j].type == TK_RPAREN)
+      {
+        balance--;
+      }
+      if ((balance == 0 &&  j < q) || balance < 0)
+      {
+        return false;
+      }
+    }
+    return balance == 0;
+  }
+  return false;
+}
 
+static int get_operator_priority(int type) {
+  switch (type) {
+  case TK_EQ:    return 1;  // 最低优先级
+  case '+': case '-': return 2;
+  case '*': case '/': return 3;  // 最高优先级
+  default: return 0;
+  }
+}
+
+static int find_main_operator(int p, int q)
+{
+  int balance = 0;
+  int op = -1;
+  int min_op = INT32_MAX;
+  for (int i = q; i >= p; i--)
+  {
+    if (tokens[i].type == TK_RPAREN)
+    {
+      balance--;
+    }else if (tokens[i].type == TK_LPAREN)
+    {
+      balance++;
+    }
+    if (balance != 0)
+    {
+      continue;
+    }
+    int priority = get_operator_priority(tokens[i].type);
+    if (min_op > priority && priority > 0)
+    {
+      min_op = priority;
+      op = i;
+    }
+  }
+  return op;
+}
+
+
+word_t eval(int p, int q, bool *success) {
+  // 处理单个token的情况
+  if (p > q)
+  {
+    printf("Error: Invalid expression (empty range: p=%d > q=%d)\n", p, q);
+  }else if(p == q) {
+    if (tokens[p].type == TK_NUM) {
+      return atoi(tokens[p].str);
+    }
+    if (tokens[p].type == TK_REG) {
+      return isa_reg_str2val(tokens[p].str, success);
+    }
+    *success = false;
+    return 0;
+  }
+
+  // 处理括号
+  if (check_parentheses(p, q) == true) {
+    return eval(p + 1, q - 1, success);
+  }
+
+  // 查找主操作符（优先级最低的操作符）
+  int op = find_main_operator(p, q);
+
+  // 递归计算左右子表达式
+  word_t val1 = eval(p, op - 1, success);
+  if (!*success) return 0;
+
+  word_t val2 = eval(op + 1, q, success);
+  if (!*success) return 0;
+
+  // 根据操作符类型进行计算
+  switch (tokens[op].type) {
+  case '+': return val1 + val2;
+  case '-': return val1 - val2;
+  case '*': return val1 * val2;
+  case '/': return val2 != 0 ? val1 / val2 : 0;
+  case TK_EQ: return val1 == val2;
+  default: *success = false; return 0;
+  }
+}
 
 word_t expr(char *e, bool *success) {
   if (!make_token(e)) {
