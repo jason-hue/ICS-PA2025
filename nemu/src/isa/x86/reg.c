@@ -62,5 +62,17 @@ void isa_reg_display() {
 }
 
 word_t isa_reg_str2val(const char *s, bool *success) {
+  // Skip the '$' prefix
+  const char *reg_name = s + 1;
+  
+  // Compare with each register name
+  for (int i = 0; i < sizeof(regsb)/sizeof(regsb[0]); i++) {
+    if (strcmp(reg_name, regsb[i]) == 0) {
+      if (success) *success = true;
+      return reg_l(i);
+    }
+  }
+  
+  if (success) *success = false;
   return 0;
 }

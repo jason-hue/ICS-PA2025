@@ -292,9 +292,6 @@ static word_t get_token_value(int idx, bool *success) {
     *success = false;
     return 0;
   }
-  
-  *success = false;
-  return 0;
 }
 
 static word_t compute_operator(word_t val1, int op_type, word_t val2, bool *success) {
