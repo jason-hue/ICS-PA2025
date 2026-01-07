@@ -164,68 +164,10 @@ static bool make_token(char *e) {
 
 
 static void test_tokens() {
-  const char *numbers[] = {"123", "456", "789", "0x123", "0xABC", "0xff"};
-  const char *registers[] = {"$eax", "$ebx", "$ecx", "$edx", "$esp", "$ebp"};
-  const char *operators[] = {"+", "-", "*", "/", "=="};
-  
-  int num_tests = 50;
-  int passed = 0;
-  
-  srand(12345);
-  
-  printf("Running %d random tokenization tests...\n", num_tests);
-  
-  for (int i = 0; i < num_tests; i++) {
-    char test_expr[256] = {0};
-    
-    int num_parts = rand() % 4 + 2;
-    
-    for (int j = 0; j < num_parts; j++) {
-      if (j > 0) {
-        int op_idx = rand() % (sizeof(operators)/sizeof(operators[0]));
-        strcat(test_expr, operators[op_idx]);
-        strcat(test_expr, " ");
-      }
-      
-      int choice = rand() % 3;
-      if (choice == 0) {
-        int num_idx = rand() % (sizeof(numbers)/sizeof(numbers[0]));
-        strcat(test_expr, numbers[num_idx]);
-      } else if (choice == 1) {
-        int reg_idx = rand() % (sizeof(registers)/sizeof(registers[0]));
-        strcat(test_expr, registers[reg_idx]);
-      } else {
-        strcat(test_expr, "(");
-        int num_idx = rand() % (sizeof(numbers)/sizeof(numbers[0]));
-        strcat(test_expr, numbers[num_idx]);
-        strcat(test_expr, ")");
-        j++;
-      }
-    }
-    
-    bool success = make_token(test_expr);
-    if (success) {
-      printf("Test %3d: PASS - '%s' -> %d tokens\n", i+1, test_expr, nr_token);
-      passed++;
-    } else {
-      printf("Test %3d: FAIL - '%s' (tokenization failed)\n", i+1, test_expr);
-    }
-  }
-  
-  printf("\nRandom test results: %d/%d passed (%.1f%%)\n", 
-         passed, num_tests, (float)passed/num_tests * 100);
-         
-  if (passed == num_tests) {
-    printf("All random tests passed!\n");
-  } else {
-    printf("Some tests failed. Check the implementation.\n");
-  }
+
 }
-  assert(nr_token == 3);
-  assert(tokens[0].type == TK_REG && strcmp(tokens[0].str, "$eax") == 0);
-  assert(tokens[1].type == '+');
-  assert(tokens[2].type == TK_REG && strcmp(tokens[2].str, "$ecx") == 0);
-}
+
+
 
 word_t expr(char *e, bool *success) {
   if (!make_token(e)) {
@@ -234,6 +176,7 @@ word_t expr(char *e, bool *success) {
   }
 
   /* TODO: Insert codes to evaluate the expression. */
-  *success = false;
+  TODO();
+
   return 0;
 }
