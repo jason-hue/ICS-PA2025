@@ -164,7 +164,67 @@ static bool make_token(char *e) {
 
 
 static void test_tokens() {
+  printf("Testing tokens...\n");
+  int nr_test = 50;
+  for (int i = 0; i < nr_test; i++) {
+    char buf[256] = "";
+    int expected_types[32];
+    char expected_strs[32][32];
+    int expected_nr = 0;
+    // Generate random expression by concatenating tokens
+    while (expected_nr < 30) {
+      int r = rand() % NR_REGEX;
+      int type = rules[r].token_type;
+      char token_str[64] = "";
+      if (type == TK_NOTYPE) {
+        strcat(buf, " ");
+        continue;
+      }
+      switch (type) {
+        case TK_NUM:
+          if (rand() % 2 == 0) sprintf(token_str, "%u", rand() % 1000000);
+          else sprintf(token_str, "0x%x", rand() % 0xffffff);
+          break;
+        case TK_REG: {
+          const char *regs[] = {"$eax", "$ecx", "$edx", "$ebx", "$esp", "$ebp", "$esi", "$edi", "$pc", "$zero", "$ra", "$sp"};
+          strcpy(token_str, regs[rand() % 12]);
+          break;
+        }
+        case '+': strcpy(token_str, "+"); break;
+        case '-': strcpy(token_str, "-"); break;
+        case '*': strcpy(token_str, "*"); break;
+        case '/': strcpy(token_str, "/"); break;
+        case TK_EQ: strcpy(token_str, "=="); break;
+        case TK_LPAREN: strcpy(token_str, "("); break;
+        case TK_RPAREN: strcpy(token_str, ")"); break;
+        default: continue;
+      }
+      // Check if buf has enough space
+      if (strlen(buf) + strlen(token_str) + 2 >= sizeof(buf)) break;
+      strcat(buf, token_str);
+      strcat(buf, " "); // Use space as delimiter to avoid token merging
+      expected_types[expected_nr] = type;
+      if (type == TK_NUM || type == TK_REG) {
+        strncpy(expected_strs[expected_nr], token_str, 31);
+        expected_strs[expected_nr][31] = '\0';
+      }
+      expected_nr++;
 
+      if (rand() % 10 == 0) break; // Randomly terminate the expression
+    }
+    if (expected_nr == 0) continue;
+    // Perform the test
+    bool success = make_token(buf);
+    Assert(success, "make_token failed on string: \"%s\"", buf);
+    Assert(nr_token == expected_nr, "nr_token mismatch: expected %d, got %d. string: \"%s\"", expected_nr, nr_token, buf);
+    for (int j = 0; j < nr_token; j++) {
+      Assert(tokens[j].type == expected_types[j], "token %d type mismatch: expected %d, got %d. string: \"%s\"", j, expected_types[j], tokens[j].type, buf);
+      if (tokens[j].type == TK_NUM || tokens[j].type == TK_REG) {
+        Assert(strcmp(tokens[j].str, expected_strs[j]) == 0, "token %d str mismatch: expected \"%s\", got \"%s\". string: \"%s\"", j, expected_strs[j], tokens[j].str, buf);
+      }
+    }
+  }
+  printf("Token testing passed!\n");
 }
 
 
@@ -176,7 +236,7 @@ word_t expr(char *e, bool *success) {
   }
 
   /* TODO: Insert codes to evaluate the expression. */
-  // TODO();
+  TODO();
 
   return 0;
 }
