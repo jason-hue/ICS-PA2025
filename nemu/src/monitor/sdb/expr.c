@@ -166,6 +166,16 @@ static void test_tokens() {
   
   test_expr = "1+2*3";
   success = make_token(test_expr);
+  printf("Test: '%s', success=%d, nr_token=%d\n", test_expr, success, nr_token);
+  if (success) {
+    for (int i = 0; i < nr_token; i++) {
+      printf("  [%d] type=%d", i, tokens[i].type);
+      if (tokens[i].type == TK_NUM || tokens[i].type == TK_REG) {
+        printf(", str='%s'", tokens[i].str);
+      }
+      printf("\n");
+    }
+  }
   assert(success);
   assert(nr_token == 5);
   assert(tokens[0].type == TK_NUM && strcmp(tokens[0].str, "1") == 0);
