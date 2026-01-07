@@ -95,10 +95,30 @@ static bool make_token(char *e) {
          */
 
         switch (rules[i].token_type) {
-          default: TODO();
-        }
+          case TK_NOTYPE:
+            break;
 
-        break;
+          case TK_EQ:
+            tokens[nr_token].type = TK_EQ;
+            nr_token++;
+            break;
+
+          case '+':
+          case '-':
+          case '*':
+          case '/':
+            tokens[nr_token].type = rules[i].token_type;
+            nr_token++;
+            break;
+
+          default:
+            tokens[nr_token].type = rules[i].token_type;
+            int copy_len = substr_len < 32 ? substr_len : 31;
+            strncpy(tokens[nr_token].str, substr_start, copy_len);
+            tokens[nr_token].str[copy_len] = '\0';
+            nr_token++;
+            break;
+        }
       }
     }
 
