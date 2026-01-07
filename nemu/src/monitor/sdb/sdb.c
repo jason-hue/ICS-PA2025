@@ -164,7 +164,14 @@ static int cmd_d(char *args) {
     printf("Usage: d N (delete watchpoint N)\n");
     return 0;
   }
-  int no = atoi(args);
+  // 检查 args 是否全是数字
+  char *endptr;
+  int no = strtol(args, &endptr, 10);
+  if (*endptr != '\0') {
+    printf("Usage: d N (N must be a number)\n");
+    return 0;
+  }
+
   if (delete_watchpoint(no)) {
     printf("Watchpoint %d deleted\n", no);
   } else {
