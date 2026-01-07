@@ -126,9 +126,12 @@ static int cmd_p(char *args) {
   if (success) {
     if (args[0] == '$')
     {
-      printf("0x%02X\n", result);
+      printf("0x%08X\n", result);
+    }else
+    {
+      printf("%u\n", result);
     }
-    printf("%u\n", result);
+
   } else {
     printf("Expression evaluation failed\n");
   }
