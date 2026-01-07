@@ -57,6 +57,8 @@ static struct rule {
 
 static regex_t re[NR_REGEX] = {};
 
+static void test_tokens();
+
 /* Rules are used for many times.
  * Therefore we compile them only once before any usage.
  */
@@ -72,6 +74,8 @@ void init_regex() {
       panic("regex compilation failed: %s\n%s", error_msg, rules[i].regex);
     }
   }
+
+  test_tokens();
 }
 
 typedef struct token {
@@ -221,12 +225,6 @@ static void test_tokens() {
 }
 
 word_t expr(char *e, bool *success) {
-  static bool test_run = false;
-  if (!test_run) {
-    test_tokens();
-    test_run = true;
-  }
-
   if (!make_token(e)) {
     *success = false;
     return 0;
