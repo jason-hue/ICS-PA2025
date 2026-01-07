@@ -69,7 +69,7 @@ static int cmd_info(char *args)
       isa_reg_display();
       break;
     case 'w':
-      /* TODO */
+      list_watchpoints();
       break;
     default:
       printf("Invalid parameter! Usage: info [r|w]\n");
@@ -89,22 +89,29 @@ static int cmd_x(char *args)
     return 0;
   }
   char *n_str = strtok(args, " ");
-  char *addr_str = strtok(NULL, " ");
-  if (n_str == NULL || addr_str == NULL) {
+  char *addr_expr = strtok(NULL, ""); // 获取剩余的所有字符串作为表达式
+  if (n_str == NULL || addr_expr == NULL) {
     printf("Usage: x N EXPR\n");
     return 0;
   }
+  
   int n = atoi(n_str);
-  vaddr_t vaddr = (vaddr_t) strtoul(addr_str, NULL, 16);
   if (n <= 0) {
     printf("Invalid N: N must be a positive integer.\n");
-    printf("Usage: x N EXPR\n");
     return 0;
   }
+
+  bool success;
+  vaddr_t vaddr = expr(addr_expr, &success);
+  if (!success) {
+    printf("Invalid memory address expression: %s\n", addr_expr);
+    return 0;
+  }
+
   for (int i = 0; i < n; i++)
   {
-    uint32_t data = vaddr_read(vaddr + i*4,4);
-    printf("0x%08x: 0x%08x\n",vaddr + i*4,data);
+    uint32_t data = vaddr_read(vaddr + i*4, 4);
+    printf("0x%08x: 0x%08x\n", vaddr + i*4, data);
   }
   return 0;
 }
@@ -141,6 +148,31 @@ static int cmd_p(char *args) {
 
 static int cmd_help(char *args);
 
+static int cmd_w(char *args)
+{
+  if (args == NULL)
+  {
+    printf("Usage: w EXPR\n");
+    return 0;
+  }
+  set_watchpoint(args);
+  return 0;
+}
+
+static int cmd_d(char *args) {
+  if (args == NULL) {
+    printf("Usage: d N (delete watchpoint N)\n");
+    return 0;
+  }
+  int no = atoi(args);
+  if (delete_watchpoint(no)) {
+    printf("Watchpoint %d deleted\n", no);
+  } else {
+    printf("Watchpoint %d not found\n", no);
+  }
+  return 0;
+}
+
 static struct {
   const char *name;
   const char *description;
@@ -152,7 +184,9 @@ static struct {
   {"si","Single step execution for N instructions, default is 1",cmd_si},
   {"info","Print program state (r: registers, w: watchpoints)",cmd_info},
   {"x","Examine memory (N 4-byte words starting from expression result)",cmd_x},
-  {"p","Evaluate expression", cmd_p}
+  {"p","Evaluate expression", cmd_p},
+  {"w", "Set watchpoint (w EXPR)", cmd_w},
+  {"d", "Delete watchpoint (d N)", cmd_d}
   /* TODO: Add more commands */
 
 };//回调函数

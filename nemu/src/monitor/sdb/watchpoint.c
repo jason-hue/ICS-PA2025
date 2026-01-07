@@ -79,16 +79,60 @@ void free_wp(WP *wp)
 }
 int set_watchpoint(char *e)
 {
-  WP *wp = new_wp();
-  bool success = true;
-  word_t val = expr(e,&success);
+  bool success;
+  word_t val = expr(e, &success);
   if (!success) {
     printf("Invalid expression: %s\n", e);
     return -1;
   }
+
+  WP *wp = new_wp();
   strcpy(wp->expr, e);
   wp->old_val = val;
   wp->new_val = val;
   printf("Watchpoint %d: %s\n", wp->NO, wp->expr);
   return wp->NO;
+}
+
+bool delete_watchpoint(int no) {
+  WP *wp = head;
+  while(wp != NULL) {
+    if (wp->NO == no) {
+      free_wp(wp);
+      return true;
+    }
+    wp = wp->next;
+  }
+  return false;
+}
+
+void list_watchpoints() {
+  WP *wp = head;
+  if (wp == NULL) {
+    printf("No watchpoints.\n");
+    return;
+  }
+  printf("Num\tType\t\tDisp\tEnb\tAddress\t\tWhat\n");
+  while (wp != NULL) {
+    printf("%d\twatchpoint\tkeep\ty\t\t\t%s\n", wp->NO, wp->expr);
+    wp = wp->next;
+  }
+}
+
+WP* scan_watchpoint() {
+  WP *wp = head;
+  while (wp != NULL) {
+    bool success;
+    word_t new_val = expr(wp->expr, &success);
+    if (success && new_val != wp->old_val) {
+      printf("Watchpoint %d: %s\n", wp->NO, wp->expr);
+      printf("Old value = %u\n", wp->old_val);
+      printf("New value = %u\n", new_val);
+      
+      wp->old_val = new_val;
+      return wp;
+    }
+    wp = wp->next;
+  }
+  return NULL;
 }
