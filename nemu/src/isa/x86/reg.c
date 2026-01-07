@@ -15,6 +15,7 @@
 
 #include <isa.h>
 #include "local-include/reg.h"
+#include <ctype.h>
 
 const char *regsl[] = {"eax", "ecx", "edx", "ebx", "esp", "ebp", "esi", "edi"};
 const char *regsw[] = {"ax", "cx", "dx", "bx", "sp", "bp", "si", "di"};
@@ -61,9 +62,18 @@ void isa_reg_display() {
   printf("pc  = 0x%08x\n", cpu.pc);
 }
 
+static void to_lower(char *str) {
+  while (*str) {
+    *str = tolower(*str);
+    str++;
+  }
+}
+
 word_t isa_reg_str2val(const char *s, bool *success) {
   // Skip the '$' prefix
   const char *reg_name = s + 1;
+  char *reg_name_to_lower = (char *)reg_name;
+  to_lower(reg_name_to_lower);
   
   // Compare with each register name
   for (int i = 0; i < sizeof(regsb)/sizeof(regsb[0]); i++) {

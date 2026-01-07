@@ -299,7 +299,6 @@ word_t eval(int p, int q, bool *success) {
       return atoi(tokens[p].str);
     }
     if (tokens[p].type == TK_REG) {
-      printf("reg:%s=\n",tokens[p].str);
       return isa_reg_str2val(tokens[p].str, success);
     }
     *success = false;
