@@ -74,12 +74,11 @@ word_t isa_reg_str2val(const char *s, bool *success) {
   const char *reg_name = s + 1;
   char *reg_name_to_lower = (char *)reg_name;
   to_lower(reg_name_to_lower);
-  
   // Compare with each register name
   for (int i = 0; i < sizeof(regsb)/sizeof(regsb[0]); i++) {
     if (strcmp(reg_name, regsb[i]) == 0) {
       if (success) *success = true;
-      return reg_l(i);
+      return reg_l(i) & 0xff;
     }
   }
   
