@@ -14,6 +14,7 @@
 ***************************************************************************************/
 
 #include <isa.h>
+#include <memory/vaddr.h>
 
 /* We use the POSIX regex functions to process regular expressions.
  * Type 'man regex' for more information about POSIX regex functions.
@@ -21,11 +22,13 @@
 #include <regex.h>
 
 enum {
-  TK_NOTYPE = 256, TK_EQ,
+  TK_NOTYPE = 256, TK_EQ, TK_NOT_EQ, TK_AND,
   TK_NUM,
   TK_REG,
   TK_LPAREN,
-  TK_RPAREN
+  TK_RPAREN,
+  TK_DEREF,
+  TK_NEGATIVE
 
   /* TODO: Add more token types */
 
@@ -46,6 +49,8 @@ static struct rule {
   {"\\$[a-zA-Z]+", TK_REG},
   {"\\+", '+'},         // plus
   {"==", TK_EQ},        // equal
+  {"!=", TK_NOT_EQ},    // not equal
+  {"&&", TK_AND},       // and
   {"\\-", '-'},         // minus
   {"\\*", '*'},         // multiply
   {"\\/", '/'},         // divide
@@ -253,9 +258,11 @@ bool check_parentheses(int p, int q)
 
 static int get_operator_priority(int type) {
   switch (type) {
-  case TK_EQ:    return 1;  // 最低优先级
-  case '+': case '-': return 2;
-  case '*': case '/': return 3;  // 最高优先级
+  case TK_AND: return 1;
+  case TK_EQ: case TK_NOT_EQ: return 2;
+  case '+': case '-': return 3;
+  case '*': case '/': return 4;
+  case TK_DEREF: case TK_NEGATIVE: return 5;
   default: return 0;
   }
 }
@@ -279,9 +286,15 @@ static int find_main_operator(int p, int q)
       continue;
     }
     int priority = get_operator_priority(tokens[i].type);
-    if (min_op > priority && priority > 0)
+    if (priority == 0) continue;
+
+    if (priority < min_op)
     {
       min_op = priority;
+      op = i;
+    }
+    else if (priority == min_op && (tokens[i].type == TK_DEREF || tokens[i].type == TK_NEGATIVE))
+    {
       op = i;
     }
   }
@@ -290,13 +303,14 @@ static int find_main_operator(int p, int q)
 
 
 word_t eval(int p, int q, bool *success) {
-  // 处理单个token的情况
-  if (p > q)
-  {
+  if (p > q) {
     printf("Error: Invalid expression (empty range: p=%d > q=%d)\n", p, q);
-  }else if(p == q) {
+    *success = false;
+    return 0;
+  }
+  else if (p == q) {
     if (tokens[p].type == TK_NUM) {
-      return atoi(tokens[p].str);
+      return strtol(tokens[p].str, NULL, 0);
     }
     if (tokens[p].type == TK_REG) {
       return isa_reg_str2val(tokens[p].str, success);
@@ -305,29 +319,44 @@ word_t eval(int p, int q, bool *success) {
     return 0;
   }
 
-  // 处理括号
   if (check_parentheses(p, q) == true) {
     return eval(p + 1, q - 1, success);
   }
 
-  // 查找主操作符（优先级最低的操作符）
   int op = find_main_operator(p, q);
+  if (op == -1) {
+    *success = false;
+    return 0;
+  }
 
-  // 递归计算左右子表达式
+  if (tokens[op].type == TK_DEREF || tokens[op].type == TK_NEGATIVE) {
+    word_t val = eval(op + 1, q, success);
+    if (!*success) return 0;
+    if (tokens[op].type == TK_NEGATIVE) return -val;
+    if (tokens[op].type == TK_DEREF) return vaddr_read(val, 4);
+  }
+
   word_t val1 = eval(p, op - 1, success);
   if (!*success) return 0;
 
   word_t val2 = eval(op + 1, q, success);
   if (!*success) return 0;
 
-  // 根据操作符类型进行计算
   switch (tokens[op].type) {
-  case '+': return val1 + val2;
-  case '-': return val1 - val2;
-  case '*': return val1 * val2;
-  case '/': return val2 != 0 ? val1 / val2 : 0;
-  case TK_EQ: return val1 == val2;
-  default: *success = false; return 0;
+    case '+': return val1 + val2;
+    case '-': return val1 - val2;
+    case '*': return val1 * val2;
+    case '/': 
+      if (val2 == 0) {
+        printf("Error: Division by zero\n");
+        *success = false;
+        return 0;
+      }
+      return val1 / val2;
+    case TK_EQ: return val1 == val2;
+    case TK_NOT_EQ: return val1 != val2;
+    case TK_AND: return val1 && val2;
+    default: *success = false; return 0;
   }
 }
 
@@ -336,6 +365,16 @@ word_t expr(char *e, bool *success) {
     *success = false;
     return 0;
   }
+
+  /* Post-processing to distinguish unary operators */
+  for (int i = 0; i < nr_token; i++) {
+    if (tokens[i].type == '*' || tokens[i].type == '-') {
+      if (i == 0 || tokens[i-1].type == TK_LPAREN || get_operator_priority(tokens[i-1].type) > 0) {
+        tokens[i].type = (tokens[i].type == '*') ? TK_DEREF : TK_NEGATIVE;
+      }
+    }
+  }
+
   *success = true;
   return eval(0, nr_token-1, success);
 }
