@@ -65,7 +65,7 @@ void isa_reg_display() {
 static void to_lower(char *str) {
   if (str == NULL) return;
   while (*str != '\0') {
-    *str = tolower((unsigned char)*str); 
+    *str = tolower((unsigned char)*str);
     str++;
   }
 }

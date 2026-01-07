@@ -124,6 +124,10 @@ static int cmd_p(char *args) {
   word_t result = expr(args, &success);
   
   if (success) {
+    if (args[0] == '$')
+    {
+      printf("0x%02X\n", result);
+    }
     printf("%u\n", result);
   } else {
     printf("Expression evaluation failed\n");
