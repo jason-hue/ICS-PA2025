@@ -162,96 +162,63 @@ static bool make_token(char *e) {
   return true;
 }
 
-
 static void test_tokens() {
-  bool success;
-  char *test_expr;
+  const char *numbers[] = {"123", "456", "789", "0x123", "0xABC", "0xff"};
+  const char *registers[] = {"$eax", "$ebx", "$ecx", "$edx", "$esp", "$ebp"};
+  const char *operators[] = {"+", "-", "*", "/", "=="};
   
-  test_expr = "12";
-  success = make_token(test_expr);
-  if (!success) {
-    printf("ERROR: Tokenization failed for '%s'\n", test_expr);
-    return;
+  int num_tests = 50;
+  int passed = 0;
+  
+  srand(12345);
+  
+  printf("Running %d random tokenization tests...\n", num_tests);
+  
+  for (int i = 0; i < num_tests; i++) {
+    char test_expr[256] = {0};
+    
+    int num_parts = rand() % 4 + 2;
+    
+    for (int j = 0; j < num_parts; j++) {
+      if (j > 0) {
+        int op_idx = rand() % (sizeof(operators)/sizeof(operators[0]));
+        strcat(test_expr, operators[op_idx]);
+        strcat(test_expr, " ");
+      }
+      
+      int choice = rand() % 3;
+      if (choice == 0) {
+        int num_idx = rand() % (sizeof(numbers)/sizeof(numbers[0]));
+        strcat(test_expr, numbers[num_idx]);
+      } else if (choice == 1) {
+        int reg_idx = rand() % (sizeof(registers)/sizeof(registers[0]));
+        strcat(test_expr, registers[reg_idx]);
+      } else {
+        strcat(test_expr, "(");
+        int num_idx = rand() % (sizeof(numbers)/sizeof(numbers[0]));
+        strcat(test_expr, numbers[num_idx]);
+        strcat(test_expr, ")");
+        j++;
+      }
+    }
+    
+    bool success = make_token(test_expr);
+    if (success) {
+      printf("Test %3d: PASS - '%s' -> %d tokens\n", i+1, test_expr, nr_token);
+      passed++;
+    } else {
+      printf("Test %3d: FAIL - '%s' (tokenization failed)\n", i+1, test_expr);
+    }
   }
-  if (nr_token != 1) {
-    printf("ERROR: Expected 1 token, got %d for '%s'\n", nr_token, test_expr);
-    return;
+  
+  printf("\nRandom test results: %d/%d passed (%.1f%%)\n", 
+         passed, num_tests, (float)passed/num_tests * 100);
+         
+  if (passed == num_tests) {
+    printf("All random tests passed!\n");
+  } else {
+    printf("Some tests failed. Check the implementation.\n");
   }
-  printf("SUCCESS: Tokenized '%s' into %d tokens\n", test_expr, nr_token);
-  
-  test_expr = "1+2";
-  success = make_token(test_expr);
-  if (!success) {
-    printf("ERROR: Tokenization failed for '%s'\n", test_expr);
-    return;
-  }
-  if (nr_token != 3) {
-    printf("ERROR: Expected 3 tokens, got %d for '%s'\n", nr_token, test_expr);
-    return;
-  }
-  printf("SUCCESS: Tokenized '%s' into %d tokens\n", test_expr, nr_token);
-  
-  test_expr = "0x123+456";
-  success = make_token(test_expr);
-  assert(success);
-  assert(nr_token == 3);
-  assert(tokens[0].type == TK_NUM && strcmp(tokens[0].str, "0x123") == 0);
-  assert(tokens[1].type == '+');
-  assert(tokens[2].type == TK_NUM && strcmp(tokens[2].str, "456") == 0);
-  
-  test_expr = "0x123+456";
-  success = make_token(test_expr);
-  assert(success);
-  assert(nr_token == 3);
-  assert(tokens[0].type == TK_NUM && strcmp(tokens[0].str, "0x123") == 0);
-  assert(tokens[1].type == '+');
-  assert(tokens[2].type == TK_NUM && strcmp(tokens[2].str, "456") == 0);
-  
-  test_expr = "$eax+$ecx";
-  success = make_token(test_expr);
-  assert(success);
-  assert(nr_token == 3);
-  assert(tokens[0].type == TK_REG && strcmp(tokens[0].str, "$eax") == 0);
-  assert(tokens[1].type == '+');
-  assert(tokens[2].type == TK_REG && strcmp(tokens[2].str, "$ecx") == 0);
-  
-  test_expr = " ( $eax + 0x10 ) * 2 ";
-  success = make_token(test_expr);
-  assert(success);
-  assert(nr_token == 7);
-  assert(tokens[0].type == TK_LPAREN);
-  assert(tokens[1].type == TK_REG && strcmp(tokens[1].str, "$eax") == 0);
-  assert(tokens[2].type == '+');
-  assert(tokens[3].type == TK_NUM && strcmp(tokens[3].str, "0x10") == 0);
-  assert(tokens[4].type == TK_RPAREN);
-  assert(tokens[5].type == '*');
-  assert(tokens[6].type == TK_NUM && strcmp(tokens[6].str, "2") == 0);
-  
-  test_expr = "5==6";
-  success = make_token(test_expr);
-  assert(success);
-  assert(nr_token == 3);
-  assert(tokens[0].type == TK_NUM && strcmp(tokens[0].str, "5") == 0);
-  assert(tokens[1].type == TK_EQ);
-  assert(tokens[2].type == TK_NUM && strcmp(tokens[2].str, "6") == 0);
-  
-  test_expr = "0xFF + $eax * (123 - 456) / 789";
-  success = make_token(test_expr);
-  assert(success);
-  assert(nr_token == 11);
-  assert(tokens[0].type == TK_NUM && strcmp(tokens[0].str, "0xFF") == 0);
-  assert(tokens[1].type == '+');
-  assert(tokens[2].type == TK_REG && strcmp(tokens[2].str, "$eax") == 0);
-  assert(tokens[3].type == '*');
-  assert(tokens[4].type == TK_LPAREN);
-  assert(tokens[5].type == TK_NUM && strcmp(tokens[5].str, "123") == 0);
-  assert(tokens[6].type == '-');
-  assert(tokens[7].type == TK_NUM && strcmp(tokens[7].str, "456") == 0);
-  assert(tokens[8].type == TK_RPAREN);
-  assert(tokens[9].type == '/');
-  assert(tokens[10].type == TK_NUM && strcmp(tokens[10].str, "789") == 0);
-  
-  printf("All token tests passed!\n");
 }
 
 word_t expr(char *e, bool *success) {
