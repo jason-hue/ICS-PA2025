@@ -110,10 +110,29 @@ static int cmd_x(char *args)
 }
 
 static int cmd_q(char *args) {
-  nemu_state.state = NEMU_QUIT; //添加这条后直接输入“q”make就不会报错了。
+  nemu_state.state = NEMU_QUIT; //添加这条后直接输入"q"make就不会报错了。
   return -1;
 }
 
+static int cmd_p(char *args) {
+  if (args == NULL) {
+    printf("Usage: p EXPR\n");
+    return 0;
+  }
+  
+  bool success;
+  word_t result = expr(args, &success);
+  
+  if (success) {
+    printf("%u\n", result);
+  } else {
+    printf("Expression evaluation failed\n");
+  }
+  
+  return 0;
+}
+
+static int cmd_p(char *args);
 static int cmd_help(char *args);
 
 static struct {
@@ -122,11 +141,12 @@ static struct {
   int (*handler) (char *);
 } cmd_table [] = {
   { "help", "Display information about all supported commands", cmd_help },
-  { "c", "Continue the execution of the program", cmd_c },
+  { "c", "Continue execution of program", cmd_c },
   { "q", "Exit NEMU", cmd_q },
   {"si","Single step execution for N instructions, default is 1",cmd_si},
   {"info","Print program state (r: registers, w: watchpoints)",cmd_info},
-  {"x","Examine memory (N 4-byte words starting from expression result)",cmd_x}
+  {"x","Examine memory (N 4-byte words starting from expression result)",cmd_x},
+  {"p","Evaluate expression", cmd_p}
   /* TODO: Add more commands */
 
 };//回调函数
