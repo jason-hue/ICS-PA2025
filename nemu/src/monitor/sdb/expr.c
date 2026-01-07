@@ -100,8 +100,8 @@ static bool make_token(char *e) {
         char *substr_start = e + position;
         int substr_len = pmatch.rm_eo;
 
-        Log("match rules[%d] = \"%s\" at position %d with len %d: %.*s",
-            i, rules[i].regex, position, substr_len, substr_len, substr_start);
+        // Log("match rules[%d] = \"%s\" at position %d with len %d: %.*s",
+        //     i, rules[i].regex, position, substr_len, substr_len, substr_start);
 
         position += substr_len;
 
@@ -285,19 +285,13 @@ static word_t get_token_value(int idx, bool *success) {
     *success = true;
     return val;
 } else if (tokens[idx].type == TK_REG) {
-    bool reg_success;
-    word_t val = isa_reg_str2val(tokens[idx].str + 1, &reg_success);
-    if (reg_success) {
-      *success = true;
-      return val;
-    } else {
-      *success = false;
-      return 0;
-    }
+    // TODO: Implement register lookup when isa_reg_str2val is available
+    *success = false;
+    return 0;
   } else {
     *success = false;
     return 0;
-}
+  }
   
   *success = false;
   return 0;
