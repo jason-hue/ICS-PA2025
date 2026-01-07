@@ -41,21 +41,21 @@ void init_wp_pool() {
 
 /* TODO: Implement the functionality of watchpoint */
 
-WP* new_wp(WP *free_);
-void free_wp(WP *free_,WP *wp);
+WP* new_wp();
+void free_wp(WP *wp);
 
-WP *new_wp(WP *free_)
+WP *new_wp()
 {
-  assert(free_->next != NULL && "No free watch point available!");
+  assert(free_ != NULL && "No free watch point available!");
 
-  WP *temp = free_->next;
-  free_->next = free_->next->next;
+  WP *temp = free_;
+  free_->next = free_->next;
   // 清空节点的旧数据，避免脏数据
   memset(temp, 0, sizeof(WP));
   return temp;
 }
 // 将WP节点放回空闲链表头部
-void free_wp(WP *free_, WP *wp)
+void free_wp(WP *wp)
 {
   assert(wp != NULL && "wp is NULL when free_wp!");
   wp->next = free_->next;
