@@ -52,6 +52,13 @@ void reg_test() {
   assert(sample[R_EDI] == cpu.edi);
 
   assert(pc_sample == cpu.pc);
+
+  /* Test isa_reg_str2val */
+  bool success;
+  assert(isa_reg_str2val("$eax", &success) == cpu.eax && success);
+  assert(isa_reg_str2val("$ax", &success) == (cpu.eax & 0xffff) && success);
+  assert(isa_reg_str2val("$al", &success) == (cpu.eax & 0xff) && success);
+  assert(isa_reg_str2val("$pc", &success) == cpu.pc && success);
 }
 
 void isa_reg_display() {
@@ -72,41 +79,47 @@ static void to_lower(char *str) {
 
 word_t isa_reg_str2val(const char *s, bool *success) {
   // Skip the '$' prefix
-  const char *reg_name = s + 1;
-  char *reg_name_to_lower = (char *)reg_name;
-  to_lower(reg_name_to_lower);
-  // Compare with each register name
-  // 首先检查32位寄存器 (regsl)
+  if (s[0] != '$') {
+    if (success) *success = false;
+    return 0;
+  }
+  
+  char reg_name_buf[16];
+  strncpy(reg_name_buf, s + 1, 15);
+  reg_name_buf[15] = '\0';
+  to_lower(reg_name_buf);
+  const char *reg_name = reg_name_buf;
+
+  // 1. Check 32-bit registers (regsl)
   for (int i = 0; i < sizeof(regsl)/sizeof(regsl[0]); i++) {
     if (strcmp(reg_name, regsl[i]) == 0) {
       if (success) *success = true;
-      return reg_l(i);  // 返回完整的32位值
+      return reg_l(i);
     }
   }
 
-  // 然后检查16位寄存器 (regsw)
+  // 2. Check 16-bit registers (regsw)
   for (int i = 0; i < sizeof(regsw)/sizeof(regsw[0]); i++) {
     if (strcmp(reg_name, regsw[i]) == 0) {
       if (success) *success = true;
-      return reg_w(i) & 0xffff;  // 返回16位值
+      return reg_w(i) & 0xffff;
     }
   }
 
-  // 接着检查8位寄存器 (regsb)
+  // 3. Check 8-bit registers (regsb)
   for (int i = 0; i < sizeof(regsb)/sizeof(regsb[0]); i++) {
     if (strcmp(reg_name, regsb[i]) == 0) {
       if (success) *success = true;
-      return reg_b(i) & 0xff;  // 返回8位值
+      return reg_b(i) & 0xff;
     }
   }
 
-  // 检查pc寄存器
+  // 4. Check pc
   if (strcmp(reg_name, "pc") == 0) {
     if (success) *success = true;
     return cpu.pc;
   }
-
-  // 没有找到匹配的寄存器
+  
   if (success) *success = false;
   return 0;
 }
