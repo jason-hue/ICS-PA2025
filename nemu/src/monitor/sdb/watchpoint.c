@@ -20,9 +20,10 @@
 typedef struct watchpoint {
   int NO;
   struct watchpoint *next;
-
+  char expr[128];
+  word_t old_val;
+  word_t new_val;
   /* TODO: Add more members if necessary */
-
 } WP;
 
 static WP wp_pool[NR_WP] = {};
@@ -41,7 +42,7 @@ void init_wp_pool() {
 
 /* TODO: Implement the functionality of watchpoint */
 
-WP* new_wp();
+WP *new_wp();
 void free_wp(WP *wp);
 
 WP *new_wp()
@@ -49,15 +50,45 @@ WP *new_wp()
   assert(free_ != NULL && "No free watch point available!");
 
   WP *temp = free_;
-  free_->next = free_->next;
-  // 清空节点的旧数据，避免脏数据
-  memset(temp, 0, sizeof(WP));
+  free_ = free_->next;
+  temp->next = head;
+  head = temp;
   return temp;
 }
 // 将WP节点放回空闲链表头部
 void free_wp(WP *wp)
 {
   assert(wp != NULL && "wp is NULL when free_wp!");
-  wp->next = free_->next;
-  free_->next = wp;
+  if (head == wp)
+  {
+    head = head->next;
+  }
+  else
+  {
+    WP *temp = head;
+    while (temp != NULL && temp->next != wp)
+    {
+      temp = temp->next;
+    }
+    if (temp != NULL) {
+      temp->next = wp->next;
+    }
+  }
+  wp->next = free_;
+  free_ = wp;
+}
+int set_watchpoint(char *e)
+{
+  WP *wp = new_wp();
+  bool success = true;
+  word_t val = expr(e,&success);
+  if (!success) {
+    printf("Invalid expression: %s\n", e);
+    return -1;
+  }
+  strcpy(wp->expr, e);
+  wp->old_val = val;
+  wp->new_val = val;
+  printf("Watchpoint %d: %s\n", wp->NO, wp->expr);
+  return wp->NO;
 }
