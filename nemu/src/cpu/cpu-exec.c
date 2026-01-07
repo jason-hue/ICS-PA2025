@@ -83,7 +83,7 @@ static void execute(uint64_t n) {
     exec_once(&s, cpu.pc);
     g_nr_guest_inst ++;
     trace_and_difftest(&s, cpu.pc);
-    if (nemu_state.state != NEMU_RUNNING) break;
+    if (nemu_state.state != NEMU_RUNNING) break;//将state改成stop就能实现暂停执行，本质上是打破了 CPU 的取指-执行循环。
     IFDEF(CONFIG_DEVICE, device_update());
   }
 }
