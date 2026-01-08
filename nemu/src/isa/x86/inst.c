@@ -43,7 +43,7 @@ typedef union {
 static word_t x86_inst_fetch(Decode *s, int len) {
 #if defined(CONFIG_ITRACE) || defined(CONFIG_IQUEUE)
   uint8_t *p = &s->isa.inst[s->snpc - s->pc];
-  word_t ret = inst_fetch(&s->snpc, len);
+  word_t ret = inst_fetch(&s->snpc, len);//包装的paddr_read，并更新了pc的值。
   word_t ret_save = ret;
   int i;
   assert(s->snpc - s->pc < sizeof(s->isa.inst));
