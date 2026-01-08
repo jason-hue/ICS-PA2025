@@ -177,7 +177,7 @@ static void decode_operand(Decode *s, uint8_t opcode, int *rd_, word_t *src1,
 } while (0)
 
 void _2byte_esc(Decode *s, bool is_operand_size_16) {
-  uint8_t opcode = x86_inst_fetch(s, 1);//抓取第一个字节
+  uint8_t opcode = x86_inst_fetch(s, 1);
   INSTPAT_START();
   INSTPAT("???? ????", inv,    N,    0, INV(s->pc));
   INSTPAT_END();
