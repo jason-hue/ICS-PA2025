@@ -194,8 +194,8 @@ static void decode_operand(Decode *s, uint8_t opcode, int *rd_, word_t *src1,
   Mw(cpu.esp, w, val); \
 } while (0)
 
-#define pop(val) do { \
-  Mr(cpu.esp,w);\
+#define pop(dest) do { \
+  dest = Mr(cpu.esp,w);\
   cpu.esp += w;\
 } while (0)
 
