@@ -157,7 +157,7 @@ enum {
   decode_operand(s, opcode, &rd, &src1, &addr, &rs, &gp_idx, &imm, w, concat(TYPE_, type)); \
   s->dnpc = s->snpc; \
   __VA_ARGS__ ; \
-}
+}//action代码会在最后一行代码被执行
 
 static void decode_operand(Decode *s, uint8_t opcode, int *rd_, word_t *src1,
     word_t *addr, int *rs, int *gp_idx, word_t *imm, int w, int type) {
@@ -188,8 +188,13 @@ static void decode_operand(Decode *s, uint8_t opcode, int *rd_, word_t *src1,
  */
 
 #define push(val) do { \
-  cpu.esp -= 4; \
-  Mw(cpu.esp, 4, val); \
+  cpu.esp -= w; \
+  Mw(cpu.esp, w, val); \
+} while (0)
+
+#define pop(val) do { \
+  Mr(cpu.esp,w);\
+  cpu.esp += w;\
 } while (0)
 
 void _2byte_esc(Decode *s, bool is_operand_size_16) {
@@ -226,7 +231,7 @@ again:
 
   INSTPAT("1011 0???", mov,       I2r,  1, Rw(rd, 1, imm));
   INSTPAT("1011 1???", mov,       I2r,  0, Rw(rd, w, imm));
-  INSTPAT("0101 0???", push,      N,    0, push(opcode & 0x7));
+  INSTPAT("0101 0???", push,      N,    0, push(Rr(opcode & 0x7,w)));
   INSTPAT("1100 0110", mov,       I2E,  1, RMw(imm));
   INSTPAT("1100 0111", mov,       I2E,  0, RMw(imm));
   INSTPAT("1100 1100", nemu_trap, N,    0, NEMUTRAP(s->pc, cpu.eax));
