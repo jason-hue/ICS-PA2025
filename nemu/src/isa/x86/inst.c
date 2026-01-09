@@ -169,6 +169,8 @@ static void decode_operand(Decode *s, uint8_t opcode, int *rd_, word_t *src1,
     case TYPE_O2a:  destr(R_EAX); *addr = x86_inst_fetch(s, 4); break;
     case TYPE_a2O:  *rs = R_EAX;  *addr = x86_inst_fetch(s, 4); break;
     case TYPE_N:    break;
+    case TYPE_I:    imm(); break;
+    case TYPE_J:    imm(); break;
     default: panic("Unsupported type = %d", type);
   }
 }
@@ -232,9 +234,11 @@ again:
   INSTPAT("1011 0???", mov,       I2r,  1, Rw(rd, 1, imm));
   INSTPAT("1011 1???", mov,       I2r,  0, Rw(rd, w, imm));
   INSTPAT("0101 0???", push,      N,    0, push(Rr(opcode & 0x7,w)));
+  INSTPAT("0110 1000", push,      I,    0, push(imm));
   INSTPAT("1100 0110", mov,       I2E,  1, RMw(imm));
   INSTPAT("1100 0111", mov,       I2E,  0, RMw(imm));
   INSTPAT("1100 1100", nemu_trap, N,    0, NEMUTRAP(s->pc, cpu.eax));
+  INSTPAT("1110 1000", call,      J,    0, push(s->snpc);s->dnpc = s->snpc + imm);
   INSTPAT("???? ????", inv,       N,    0, INV(s->pc));
   INSTPAT_END();
 
