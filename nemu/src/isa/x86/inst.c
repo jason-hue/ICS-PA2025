@@ -23,7 +23,7 @@ typedef union {
     uint8_t R_M		:3;
     uint8_t reg		:3;
     uint8_t mod		:2;
-  };
+  };//1 个字节放置三个成员（总计 8 bits）,因为定义了位域，不再按8位对齐了
   struct {
     uint8_t dont_care	:3;
     uint8_t opcode		:3;
@@ -82,9 +82,10 @@ static void load_addr(Decode *s, ModR_M *m, word_t *rm_addr) {
   int disp_size = 4;
   int base_reg = -1, index_reg = -1, scale = 0;
 
+  //验证是否存在SIB字节，R_M要为4,（100），mod!=3
   if (m->R_M == R_ESP) {
     SIB sib;
-    sib.val = x86_inst_fetch(s, 1);
+    sib.val = x86_inst_fetch(s, 1);//再顺位取一个字节，SIB字节
     base_reg = sib.base;
     scale = sib.ss;
 
@@ -93,6 +94,8 @@ static void load_addr(Decode *s, ModR_M *m, word_t *rm_addr) {
   else { base_reg = m->R_M; } /* no SIB */
 
   if (m->mod == 0) {
+    // Mod = 00: [Base] 模式 (通常没有 Disp)
+    // 特殊情况：如果 Base 是 EBP (101)，但 Mod=00，实际上是指 [Disp32] (直接寻址)
     if (base_reg == R_EBP) { base_reg = -1; }
     else { disp_size = 0; }
   }
@@ -111,8 +114,8 @@ static void load_addr(Decode *s, ModR_M *m, word_t *rm_addr) {
 
 static void decode_rm(Decode *s, int *rm_reg, word_t *rm_addr, int *reg, int width) {
   ModR_M m;
-  m.val = x86_inst_fetch(s, 1);
-  if (reg != NULL) *reg = m.reg;
+  m.val = x86_inst_fetch(s, 1);//读的ModR/M 字节
+  if (reg != NULL) *reg = m.reg;//因为Mod_M m是联合体，当给 m.val 赋值的那一刻，m.reg，m.R_M 就已经被填满了
   if (m.mod == 3) *rm_reg = m.R_M;
   else { load_addr(s, &m, rm_addr); *rm_reg = -1; }
 }
@@ -192,6 +195,7 @@ again:
 
   INSTPAT_START();
 
+  //INSTPAT(模式字符串, 指令名称, 指令类型, 指令执行操作);
   INSTPAT("0000 1111", 2byte_esc, N,    0, _2byte_esc(s, is_operand_size_16));
 
   INSTPAT("0110 0110", data_size, N,    0, is_operand_size_16 = true; goto again;);
