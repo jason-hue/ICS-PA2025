@@ -195,7 +195,7 @@ again:
 
   INSTPAT_START();
 
-  //INSTPAT(模式字符串, 指令名称, 指令类型, 指令执行操作);
+  //INSTPAT(模式, 名称, 译码类型, 宽度标志, 执行逻辑);
   INSTPAT("0000 1111", 2byte_esc, N,    0, _2byte_esc(s, is_operand_size_16));
 
   INSTPAT("0110 0110", data_size, N,    0, is_operand_size_16 = true; goto again;);
