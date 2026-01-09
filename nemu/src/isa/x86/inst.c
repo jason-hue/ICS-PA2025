@@ -169,6 +169,7 @@ static void decode_operand(Decode *s, uint8_t opcode, int *rd_, word_t *src1,
     case TYPE_O2a:  destr(R_EAX); *addr = x86_inst_fetch(s, 4); break;
     case TYPE_a2O:  *rs = R_EAX;  *addr = x86_inst_fetch(s, 4); break;
     case TYPE_N:    break;
+    case TYPE_r:    src1r(opcode & 0x7); break;
     default: panic("Unsupported type = %d", type);
   }
 }
