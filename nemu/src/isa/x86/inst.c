@@ -178,7 +178,8 @@ static void decode_operand(Decode *s, uint8_t opcode, int *rd_, word_t *src1,
 
 #define gp1() do { \
   switch (gp_idx) { \
-    case  5: ;\
+    case  0: RMw((rd != -1 ? Rr(rd, w) : Mr(addr, w)) + imm); break; \
+    case  5: RMw((rd != -1 ? Rr(rd, w) : Mr(addr, w)) - imm); break;\
     default: INV(s->pc); \
   }; \
 } while (0)
@@ -242,6 +243,7 @@ again:
   INSTPAT("1100 1100", nemu_trap, N,    0, NEMUTRAP(s->pc, cpu.eax));
   INSTPAT("1110 1000", call,      J,    0, push(s->snpc);s->dnpc = s->snpc + imm);
   INSTPAT("???? ????", inv,       N,    0, INV(s->pc));
+  INSTPAT("1000 0011", gp1,       SI2E, 0, gp1());
   INSTPAT_END();
 
   return 0;
