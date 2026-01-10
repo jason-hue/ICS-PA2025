@@ -67,6 +67,13 @@ void isa_reg_display() {
     printf("%-3s = 0x%08x\n", regsl[i], reg_l(i));
   }
   printf("pc  = 0x%08x\n", cpu.pc);
+  printf("eflags = 0x%08x [ CF=%d ZF=%d SF=%d OF=%d IF=%d ]\n",
+         cpu.eflags.val,
+         cpu.eflags.CF,
+         cpu.eflags.ZF,
+         cpu.eflags.SF,
+         cpu.eflags.OF,
+         cpu.eflags.IF);
 }
 
 static void to_lower(char *str) {
