@@ -131,6 +131,7 @@ static void decode_rm(Decode *s, int *rm_reg, word_t *rm_addr, int *reg, int wid
 #define src1r(r)  do { *src1 = Rr(r, w); } while (0)
 #define imm()     do { *imm = x86_inst_fetch(s, w); } while (0)
 #define simm(w)   do { *imm = SEXT(x86_inst_fetch(s, w), w * 8); } while (0)
+#define ddest (rd != -1 ? Rr(rd, w) : Mr(addr, w))
 
 enum {
   TYPE_r, TYPE_I, TYPE_SI, TYPE_J, TYPE_E,
@@ -274,7 +275,7 @@ again:
   INSTPAT("1100 1100", nemu_trap, N,    0, NEMUTRAP(s->pc, cpu.eax));
   INSTPAT("1110 1000", call,      J,    0, push(s->snpc);s->dnpc = s->snpc + imm);
   INSTPAT("1000 0011", gp1,       SI2E, 0, gp1());
-  INSTPAT("0011 0001", xor,       G2E,  0, xor((rd != -1 ? Rr(rd, w) : Mr(addr, w)),src1));
+  INSTPAT("0011 0001", xor,       G2E,  0, xor(ddest,src1));
 
   INSTPAT("???? ????", inv,       N,    0, INV(s->pc));//通配符
   INSTPAT_END();
