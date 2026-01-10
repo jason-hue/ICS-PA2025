@@ -224,6 +224,15 @@ static inline void update_eflags(int gp_idx, word_t dest, word_t src, word_t res
   cpu.esp += w;\
 } while (0)
 
+#define xor(dest, src) do { \
+  word_t res = dest ^ src; \
+  RMw(res); \
+  cpu.eflags.CF = 0; \
+  cpu.eflags.OF = 0; \
+  cpu.eflags.ZF = (res == 0); \
+  cpu.eflags.SF = (res >> (w * 8 - 1)) & 1; \
+} while (0)
+
 void _2byte_esc(Decode *s, bool is_operand_size_16) {
   uint8_t opcode = x86_inst_fetch(s, 1);
   INSTPAT_START();
@@ -265,7 +274,7 @@ again:
   INSTPAT("1100 1100", nemu_trap, N,    0, NEMUTRAP(s->pc, cpu.eax));
   INSTPAT("1110 1000", call,      J,    0, push(s->snpc);s->dnpc = s->snpc + imm);
   INSTPAT("1000 0011", gp1,       SI2E, 0, gp1());
-  INSTPAT("0011 0001", xor,       G2E,  1, RMw(src1));
+  INSTPAT("0011 0001", xor,       G2E,  0, xor((rd != -1 ? Rr(rd, w) : Mr(addr, w)),src1));
 
   INSTPAT("???? ????", inv,       N,    0, INV(s->pc));//通配符
   INSTPAT_END();
