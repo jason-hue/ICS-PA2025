@@ -126,8 +126,8 @@ WP* scan_watchpoint() {
     word_t new_val = expr(wp->expr, &success);
     if (success && new_val != wp->old_val) {
       printf("Watchpoint %d: %s\n", wp->NO, wp->expr);
-      printf("Old value = %u\n", wp->old_val);
-      printf("New value = %u\n", new_val);
+      printf("Old value = 0x%08x\n", wp->old_val);
+      printf("New value = 0x%08x\n", new_val);
       
       wp->old_val = new_val;
       return wp;
