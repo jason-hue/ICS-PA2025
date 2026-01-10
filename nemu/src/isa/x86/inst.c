@@ -175,11 +175,33 @@ static void decode_operand(Decode *s, uint8_t opcode, int *rd_, word_t *src1,
     default: panic("Unsupported type = %d", type);
   }
 }
+static inline void update_eflags(int gp_idx, word_t dest, word_t src, word_t res, int width)
+{
+  int shift = width * 8 - 1;
+  cpu.eflags.ZF = (res == 0);
+  cpu.eflags.SF = (res >> shift) & 1;
+  // CF & OF: 只有加减法需要
+  if (gp_idx == 0) { // ADD
+    cpu.eflags.CF = (res < dest); // 无符号溢出
+    // 有符号溢出: 两个加数符号相同，但与结果符号不同
+    cpu.eflags.OF = ((dest >> shift) == (src >> shift)) && ((dest >> shift) != (res >> shift));
+  }
+  else if (gp_idx == 5) { // SUB (cmp 也用这个)
+    cpu.eflags.CF = (dest < src); // 无符号借位
+    // 有符号溢出: 减数与被减数符号不同，且结果符号与被减数不同
+    // (例如: 正 - 负 = 负)
+    cpu.eflags.OF = ((dest >> shift) != (src >> shift)) && ((dest >> shift) != (res >> shift));
+  }
 
+  // AND, OR, XOR 等指令通常会清空 CF/OF，这里暂略
+}
 #define gp1() do { \
+  word_t dest = (rd != -1 ? Rr(rd, w) : Mr(addr, w)); \
+  word_t src = imm; \
+  word_t res = 0; \
   switch (gp_idx) { \
-    case  0: RMw((rd != -1 ? Rr(rd, w) : Mr(addr, w)) + imm); break; \
-    case  5: RMw((rd != -1 ? Rr(rd, w) : Mr(addr, w)) - imm); break;\
+    case 0: res = dest + src; RMw(res); update_eflags(0, dest, src, res, w); break; /* ADD */ \
+    case 5: res = dest - src; RMw(res); update_eflags(5, dest, src, res, w); break; /* SUB */ \
     default: INV(s->pc); \
   }; \
 } while (0)
