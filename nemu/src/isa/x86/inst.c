@@ -171,12 +171,14 @@ static void decode_operand(Decode *s, uint8_t opcode, int *rd_, word_t *src1,
     case TYPE_N:    break;
     case TYPE_I:    imm(); break;
     case TYPE_J:    imm(); break;
+    case TYPE_SI2E: decode_rm(s, rd_, addr, gp_idx, w); simm(1);break;
     default: panic("Unsupported type = %d", type);
   }
 }
 
 #define gp1() do { \
   switch (gp_idx) { \
+    case  5: ;\
     default: INV(s->pc); \
   }; \
 } while (0)
