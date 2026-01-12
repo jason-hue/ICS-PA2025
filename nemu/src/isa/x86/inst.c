@@ -236,6 +236,31 @@ cpu.esp += w;\
 
 #define gp5() do{ \
   switch (gp_idx){ \
+    case 0: { \
+      word_t dest = dsrc1; \
+      word_t res = dest + 1; \
+      RMw(res); \
+      cpu.eflags.ZF = (res == 0); \
+      cpu.eflags.SF = (res >> (w * 8 - 1)) & 1; \
+      cpu.eflags.OF = ((dest >> (w * 8 - 1)) == 0) && ((res >> (w * 8 - 1)) == 1); \
+      break; \
+    } \
+    case 1: { \
+      word_t dest = dsrc1; \
+      word_t res = dest - 1; \
+      RMw(res); \
+      cpu.eflags.ZF = (res == 0); \
+      cpu.eflags.SF = (res >> (w * 8 - 1)) & 1; \
+      cpu.eflags.OF = ((dest >> (w * 8 - 1)) == 1) && ((res >> (w * 8 - 1)) == 0); \
+      break; \
+    } \
+    case 2: \
+      push(s->snpc); \
+      s->dnpc = dsrc1; \
+      break; \
+    case 4: \
+      s->dnpc = dsrc1; \
+      break; \
     case 6: push(dsrc1);break; \
     default: INV(s->pc); \
   };\
@@ -310,6 +335,7 @@ again:
   INSTPAT("1011 0???", mov,       I2r,  1, Rw(rd, 1, imm));
   INSTPAT("1011 1???", mov,       I2r,  0, Rw(rd, w, imm));
   INSTPAT("0101 0???", push,      N,    0, push(Rr(opcode & 0x7,w)));
+  INSTPAT("0101 1???", pop,       N,    0, { word_t val; pop(val); Rw(opcode & 0x7, w, val); });
   INSTPAT("0110 1000", push,      I,    0, push(imm));
   INSTPAT("1100 0110", mov,       I2E,  1, RMw(imm));
   INSTPAT("1100 0111", mov,       I2E,  0, RMw(imm));
@@ -317,6 +343,7 @@ again:
   INSTPAT("1110 1000", call,      J,    0, push(s->snpc);s->dnpc = s->snpc + imm);
   INSTPAT("1000 0011", gp1,       SI2E, 0, gp1());
   INSTPAT("0011 0001", xor,       G2E,  0, xor(ddest,src1));
+  INSTPAT("1000 1111", pop,       E,    0, { word_t val; pop(val); RMw(val); });
   INSTPAT("1100 0011", ret,       N,    0, pop(s->dnpc));
   INSTPAT("1000 1101", lea,       E2G,  0, Rw(rd,w,addr));
   INSTPAT("1111 1111", gp5,       E,    0, gp5());
