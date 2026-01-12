@@ -320,7 +320,8 @@ again:
   INSTPAT("1100 0011", ret,       N,    0, pop(s->dnpc));
   INSTPAT("1000 1101", lea,       E2G,  0, Rw(rd,w,addr));
   INSTPAT("1111 1111", gp5,       E,    0, gp5());
-  INSTPAT("0000 0001", add, G2E, 0, { word_t res = ddest + src1; RMw(res); update_eflags(0, ddest, src1, res, w); });  INSTPAT("0011 1011", cmp, E2G, 0, { \
+  INSTPAT("0000 0001", add, G2E, 0, { word_t dest = ddest; word_t res = dest + src1; RMw(res); update_eflags(0, dest, src1, res, w); });
+  INSTPAT("0011 1011", cmp, E2G, 0, { \
       word_t dest = Rr(rd, w); \
       word_t src = Mr(addr, w); \
       update_eflags(5, dest, src, dest - src, w); \
