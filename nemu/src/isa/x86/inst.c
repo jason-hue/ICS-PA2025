@@ -240,6 +240,9 @@ cpu.esp += w;\
       push(s->snpc); \
       s->dnpc = dsrc1; \
       break; \
+    case 4: \
+      s->dnpc = dsrc1; \
+      break; \
     case 6: push(dsrc1);break; \
     default: INV(s->pc); \
   };\
