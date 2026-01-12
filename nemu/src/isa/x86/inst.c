@@ -278,6 +278,8 @@ again:
   INSTPAT_START();
 
   //INSTPAT(模式, 名称, 译码类型, 宽度标志, 执行逻辑);
+  /* rd, rs, gp_idx, src1, addr, imm, w这些变量在INSTPAT_MATCH宏中已经被填充了，可以直接用 */
+
   INSTPAT("0000 1111", 2byte_esc, N,    0, _2byte_esc(s, is_operand_size_16));
 
   INSTPAT("0110 0110", data_size, N,    0, is_operand_size_16 = true; goto again;);
@@ -307,6 +309,7 @@ again:
   INSTPAT("1000 1101", lea,       E2G,  0, Rw(rd,w,addr));
   INSTPAT("1111 1111", gp5,       E,    0, gp5());
   INSTPAT("0000 0001", add,       G2E,  0, RMw(ddest + src1);update_eflags(0, ddest, src1, ddest + src1, w));
+  INSTPAT("0011 1011", cmp,       E2G,  0, update_eflags(5, Rr(rd,w), Mr(addr,w), Rr(rd,w) - Mr(addr,w), w));
 
   INSTPAT("???? ????", inv,       N,    0, INV(s->pc));//通配符
   INSTPAT_END();
