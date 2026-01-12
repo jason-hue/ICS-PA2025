@@ -243,6 +243,7 @@ cpu.esp += w;\
     case 4: \
       s->dnpc = dsrc1; \
       break; \
+    case 6: push(dsrc1);break; \
     default: INV(s->pc); \
   };\
 }while(0)
