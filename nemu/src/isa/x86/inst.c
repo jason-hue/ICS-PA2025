@@ -189,7 +189,7 @@ static inline void update_eflags(int gp_idx, word_t dest, word_t src, word_t res
     // 有符号溢出: 两个加数符号相同，但与结果符号不同
     cpu.eflags.OF = ((dest >> shift) == (src >> shift)) && ((dest >> shift) != (res >> shift));
   }
-  else if (gp_idx == 5) { // SUB (cmp 也用这个)
+  else if (gp_idx == 5 || gp_idx == 7) { // SUB (cmp 也用这个)
     cpu.eflags.CF = (dest < src); // 无符号借位
     // 有符号溢出: 减数与被减数符号不同，且结果符号与被减数不同
     // (例如: 正 - 负 = 负)
@@ -221,6 +221,7 @@ cpu.esp += w;\
     case 0: res = dest + src; RMw(res); update_eflags(0, dest, src, res, w); break; /* ADD */ \
     case 5: res = dest - src; RMw(res); update_eflags(5, dest, src, res, w); break; /* SUB */ \
     case 4: RMw(dest & src);update_eflags(4,dest,src,res,w);break; /* AND */\
+    case 7: res = dest - src;  update_eflags(7, dest, src, res, w);\
     default: INV(s->pc); \
   }; \
 } while (0)
