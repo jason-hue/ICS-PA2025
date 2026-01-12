@@ -236,24 +236,6 @@ cpu.esp += w;\
 
 #define gp5() do{ \
   switch (gp_idx){ \
-    case 0: { \
-      word_t dest = dsrc1; \
-      word_t res = dest + 1; \
-      if (rs != -1) Rw(rs, w, res); else Mw(addr, w, res); \
-      cpu.eflags.ZF = (res == 0); \
-      cpu.eflags.SF = (res >> (w * 8 - 1)) & 1; \
-      cpu.eflags.OF = ((dest >> (w * 8 - 1)) == 0) && ((res >> (w * 8 - 1)) == 1); \
-      break; \
-    } \
-    case 1: { \
-      word_t dest = dsrc1; \
-      word_t res = dest - 1; \
-      if (rs != -1) Rw(rs, w, res); else Mw(addr, w, res); \
-      cpu.eflags.ZF = (res == 0); \
-      cpu.eflags.SF = (res >> (w * 8 - 1)) & 1; \
-      cpu.eflags.OF = ((dest >> (w * 8 - 1)) == 1) && ((res >> (w * 8 - 1)) == 0); \
-      break; \
-    } \
     case 2: \
       push(s->snpc); \
       s->dnpc = dsrc1; \
@@ -343,7 +325,7 @@ again:
   INSTPAT("1110 1000", call,      J,    0, push(s->snpc);s->dnpc = s->snpc + imm);
   INSTPAT("1000 0011", gp1,       SI2E, 0, gp1());
   INSTPAT("0011 0001", xor,       G2E,  0, xor(ddest,src1));
-  INSTPAT("1000 1111", pop,       E,    0, { word_t val; pop(val); if (rs != -1) Rw(rs, w, val); else Mw(addr, w, val); });
+  INSTPAT("1000 1111", pop,       E,    0, { word_t val; pop(val); RMw(val); });
   INSTPAT("1100 0011", ret,       N,    0, pop(s->dnpc));
   INSTPAT("1000 1101", lea,       E2G,  0, Rw(rd,w,addr));
   INSTPAT("1111 1111", gp5,       E,    0, gp5());
