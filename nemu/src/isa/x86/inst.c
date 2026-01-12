@@ -264,6 +264,12 @@ cpu.esp += w;\
 void _2byte_esc(Decode *s, bool is_operand_size_16) {
   uint8_t opcode = x86_inst_fetch(s, 1);
   INSTPAT_START();
+  INSTPAT("1001 0100", setcc, E, 1, {
+     word_t val = cpu.eflags.ZF;
+     if (rs != -1) Rw(rs, 1, val); else Mw(addr, 1, val);
+     // 宽度强制为 1
+ });
+
   INSTPAT("???? ????", inv,    N,    0, INV(s->pc));
   INSTPAT_END();
 }
@@ -309,8 +315,11 @@ again:
   INSTPAT("1000 1101", lea,       E2G,  0, Rw(rd,w,addr));
   INSTPAT("1111 1111", gp5,       E,    0, gp5());
   INSTPAT("0000 0001", add,       G2E,  0, RMw(ddest + src1);update_eflags(0, ddest, src1, ddest + src1, w));
-  INSTPAT("0011 1011", cmp,       E2G,  0, update_eflags(5, Rr(rd,w), Mr(addr,w), Rr(rd,w) - Mr(addr,w), w));
-
+  INSTPAT("0011 1011", cmp, E2G, 0, { \
+      word_t dest = Rr(rd, w); \
+      word_t src = Mr(addr, w); \
+      update_eflags(5, dest, src, dest - src, w); \
+    });
   INSTPAT("???? ????", inv,       N,    0, INV(s->pc));//通配符
   INSTPAT_END();
 
