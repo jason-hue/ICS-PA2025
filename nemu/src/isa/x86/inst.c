@@ -277,7 +277,7 @@ again:
   INSTPAT("1000 0011", gp1,       SI2E, 0, gp1());
   INSTPAT("0011 0001", xor,       G2E,  0, xor(ddest,src1));
   INSTPAT("1100 0011", ret,       N,    0, pop(s->dnpc));
-  INSTPAT("1000 1101", lea,       E2G,  0, Rw(rd,w,addr));
+  // INSTPAT("1000 1101", lea,       E2G,  0, Rw(rd,w,addr));
 
   INSTPAT("???? ????", inv,       N,    0, INV(s->pc));//通配符
   INSTPAT_END();
