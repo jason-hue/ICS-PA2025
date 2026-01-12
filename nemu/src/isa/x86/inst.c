@@ -202,6 +202,17 @@ static inline void update_eflags(int gp_idx, word_t dest, word_t src, word_t res
 
   // AND, OR, XOR 等指令通常会清空 CF/OF，这里暂略
 }
+
+#define push(val) do { \
+cpu.esp -= w; \
+Mw(cpu.esp, w, val); \
+} while (0)
+
+#define pop(dest) do { \
+dest = Mr(cpu.esp,w);\
+cpu.esp += w;\
+} while (0)
+
 #define gp1() do { \
   word_t dest = (rd != -1 ? Rr(rd, w) : Mr(addr, w)); \
   word_t src = imm; \
@@ -240,17 +251,6 @@ static inline void update_eflags(int gp_idx, word_t dest, word_t src, word_t res
 *   /6: push r/m (压栈)
 *   /7: (Reserved)
  */
-
-
-#define push(val) do { \
-  cpu.esp -= w; \
-  Mw(cpu.esp, w, val); \
-} while (0)
-
-#define pop(dest) do { \
-  dest = Mr(cpu.esp,w);\
-  cpu.esp += w;\
-} while (0)
 
 #define xor(dest, src) do { \
   word_t res = dest ^ src; \
@@ -306,6 +306,7 @@ again:
   INSTPAT("1100 0011", ret,       N,    0, pop(s->dnpc));
   INSTPAT("1000 1101", lea,       E2G,  0, Rw(rd,w,addr));
   INSTPAT("1111 1111", gp5,       E,    0, gp5());
+  INSTPAT("0000 0001", add,       G2E,  0, RMw(ddest + src1);update_eflags(0, ddest, src1, ddest + src1, w));
 
   INSTPAT("???? ????", inv,       N,    0, INV(s->pc));//通配符
   INSTPAT_END();
