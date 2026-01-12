@@ -192,6 +192,10 @@ static inline void update_eflags(int gp_idx, word_t dest, word_t src, word_t res
     // 有符号溢出: 减数与被减数符号不同，且结果符号与被减数不同
     // (例如: 正 - 负 = 负)
     cpu.eflags.OF = ((dest >> shift) != (src >> shift)) && ((dest >> shift) != (res >> shift));
+  }else if (gp_idx == 4)
+  {
+    cpu.eflags.OF = 0;
+    cpu.eflags.CF = 0;
   }
 
   // AND, OR, XOR 等指令通常会清空 CF/OF，这里暂略
@@ -203,6 +207,7 @@ static inline void update_eflags(int gp_idx, word_t dest, word_t src, word_t res
   switch (gp_idx) { \
     case 0: res = dest + src; RMw(res); update_eflags(0, dest, src, res, w); break; /* ADD */ \
     case 5: res = dest - src; RMw(res); update_eflags(5, dest, src, res, w); break; /* SUB */ \
+    case 4: RMw(dest & src);update_eflags(4,dest,src,res,w);break; /* AND */\
     default: INV(s->pc); \
   }; \
 } while (0)
