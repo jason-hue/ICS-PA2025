@@ -132,6 +132,7 @@ static void decode_rm(Decode *s, int *rm_reg, word_t *rm_addr, int *reg, int wid
 #define imm()     do { *imm = x86_inst_fetch(s, w); } while (0)
 #define simm(w)   do { *imm = SEXT(x86_inst_fetch(s, w), w * 8); } while (0)
 #define ddest (rd != -1 ? Rr(rd, w) : Mr(addr, w))//根据目的操作数的mod位是否为3决定读寄存器还是读内存
+#define dsrc1 (rs != -1 ? Rr(rs, w) : Mr(addr, w))//根据源操作数的mod位是否为3决定读寄存器还是读内存
 
 enum {
   TYPE_r, TYPE_I, TYPE_SI, TYPE_J, TYPE_E,
@@ -173,6 +174,7 @@ static void decode_operand(Decode *s, uint8_t opcode, int *rd_, word_t *src1,
     case TYPE_I:    imm(); break;
     case TYPE_J:    imm(); break;
     case TYPE_SI2E: decode_rm(s, rd_, addr, gp_idx, w); simm(1);break;
+    case TYPE_E:    decode_rm(s,   rs, addr, gp_idx, w);break;
     default: panic("Unsupported type = %d", type);
   }
 }
@@ -219,6 +221,26 @@ static inline void update_eflags(int gp_idx, word_t dest, word_t src, word_t res
 *   0x83: Op r/m32, imm8 (符号扩展)
 这里的 Op 到底是哪个运算，不是由 Opcode 决定的，而是由 ModR/M 字节中间的 3 位（也就是我们代码里的 gp_idx）决定的：
  */
+
+#define gp5() do{ \
+  switch (gp_idx){ \
+    case 6: push(dsrc1);break; \
+    default: INV(s->pc); \
+  };\
+}while(0)
+/*
+* gp5 (Group 5) 指令组，Opcode 0xFF。
+根据 ModR/M 中间 3 位 (gp_idx) 区分功能：
+*   /0: inc r/m (自增 1)
+*   /1: dec r/m (自减 1)
+*   /2: call r/m (绝对间接调用, near)
+*   /3: call m16:32 (远调用, far - PA不需要)
+*   /4: jmp r/m (绝对间接跳转, near)
+*   /5: jmp m16:32 (远跳转, far - PA不需要)
+*   /6: push r/m (压栈)
+*   /7: (Reserved)
+ */
+
 
 #define push(val) do { \
   cpu.esp -= w; \
@@ -283,6 +305,7 @@ again:
   INSTPAT("0011 0001", xor,       G2E,  0, xor(ddest,src1));
   INSTPAT("1100 0011", ret,       N,    0, pop(s->dnpc));
   INSTPAT("1000 1101", lea,       E2G,  0, Rw(rd,w,addr));
+  INSTPAT("1111 1111", gp5,       E,    0, gp5());
 
   INSTPAT("???? ????", inv,       N,    0, INV(s->pc));//通配符
   INSTPAT_END();
