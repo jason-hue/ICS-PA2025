@@ -221,7 +221,7 @@ cpu.esp += w;\
     case 0: res = dest + src; RMw(res); update_eflags(0, dest, src, res, w); break; /* ADD */ \
     case 5: res = dest - src; RMw(res); update_eflags(5, dest, src, res, w); break; /* SUB */ \
     case 4: RMw(dest & src);update_eflags(4,dest,src,res,w);break; /* AND */\
-    case 7: res = dest - src;  update_eflags(7, dest, src, res, w);\
+    case 7: res = dest - src;  update_eflags(7, dest, src, res, w); break;\
     default: INV(s->pc); \
   }; \
 } while (0)
@@ -320,8 +320,7 @@ again:
   INSTPAT("1100 0011", ret,       N,    0, pop(s->dnpc));
   INSTPAT("1000 1101", lea,       E2G,  0, Rw(rd,w,addr));
   INSTPAT("1111 1111", gp5,       E,    0, gp5());
-  INSTPAT("0000 0001", add,       G2E,  0, RMw(ddest + src1);update_eflags(0, ddest, src1, ddest + src1, w));
-  INSTPAT("0011 1011", cmp, E2G, 0, { \
+  INSTPAT("0000 0001", add, G2E, 0, { word_t res = ddest + src1; RMw(res); update_eflags(0, ddest, src1, res, w); });  INSTPAT("0011 1011", cmp, E2G, 0, { \
       word_t dest = Rr(rd, w); \
       word_t src = Mr(addr, w); \
       update_eflags(5, dest, src, dest - src, w); \
