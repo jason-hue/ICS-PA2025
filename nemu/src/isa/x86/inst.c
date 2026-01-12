@@ -164,8 +164,8 @@ static void decode_operand(Decode *s, uint8_t opcode, int *rd_, word_t *src1,
     word_t *addr, int *rs, int *gp_idx, word_t *imm, int w, int type) {
   switch (type) {
     case TYPE_I2r:  destr(opcode & 0x7); imm(); break;
-    case TYPE_G2E:  decode_rm(s, rd_, addr, rs, w); src1r(*rs); break;
-    case TYPE_E2G:  decode_rm(s, rs, addr, rd_, w); break;
+    case TYPE_G2E:  decode_rm(s, rd_, addr, rs, w); src1r(*rs); break;//reg字段是源寄存器编号,看数据流向可以得出，为0则reg为源。适用范围：ADD, OR, ADC, SBB, AND, SUB, XOR, CMP, MOV。
+    case TYPE_E2G:  decode_rm(s, rs, addr, rd_, w); break;//reg字段是目的寄存器编号，看opcode低位第2位，为1则reg为目的，不适用范围：LEA, PUSH, POP, INC, DEC 等功能单一的指令。
     case TYPE_I2E:  decode_rm(s, rd_, addr, gp_idx, w); imm(); break;
     case TYPE_O2a:  destr(R_EAX); *addr = x86_inst_fetch(s, 4); break;
     case TYPE_a2O:  *rs = R_EAX;  *addr = x86_inst_fetch(s, 4); break;
@@ -277,6 +277,7 @@ again:
   INSTPAT("1000 0011", gp1,       SI2E, 0, gp1());
   INSTPAT("0011 0001", xor,       G2E,  0, xor(ddest,src1));
   INSTPAT("1100 0011", ret,       N,    0, pop(s->dnpc));
+  INSTPAT("1000 1101", lea,       E2G,  0, Rw(rd,w,addr));
 
   INSTPAT("???? ????", inv,       N,    0, INV(s->pc));//通配符
   INSTPAT_END();
