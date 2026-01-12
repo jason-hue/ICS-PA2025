@@ -320,12 +320,15 @@ again:
   INSTPAT("1100 0011", ret,       N,    0, pop(s->dnpc));
   INSTPAT("1000 1101", lea,       E2G,  0, Rw(rd,w,addr));
   INSTPAT("1111 1111", gp5,       E,    0, gp5());
-  INSTPAT("0000 0001", add, G2E, 0, { word_t dest = ddest; word_t res = dest + src1; RMw(res); update_eflags(0, dest, src1, res, w); });
+  INSTPAT("0000 0001", add,       G2E,  0, { word_t dest = ddest; word_t res = dest + src1; RMw(res); update_eflags(0, dest, src1, res, w); });
+  INSTPAT("0111 0100", je,        J,    1, if (cpu.eflags.ZF) s->dnpc += (int8_t)imm);
+
   INSTPAT("0011 1011", cmp, E2G, 0, { \
-      word_t dest = Rr(rd, w); \
-      word_t src = Mr(addr, w); \
-      update_eflags(5, dest, src, dest - src, w); \
-    });
+     word_t dest = Rr(rd, w); \
+     word_t src = Mr(addr, w); \
+     update_eflags(5, dest, src, dest - src, w); \
+   });
+
   INSTPAT("???? ????", inv,       N,    0, INV(s->pc));//通配符
   INSTPAT_END();
 
