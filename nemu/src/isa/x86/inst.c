@@ -270,6 +270,11 @@ void _2byte_esc(Decode *s, bool is_operand_size_16) {
      // 宽度强制为 1
  });
 
+  INSTPAT("1011 0110", movzx, E2G, 0, {
+    word_t src = (rs != -1 ? Rr(rs, 1) : Mr(addr, 1)); // 强制宽 1
+    Rw(rd, w, src); // 零扩展是自动的，因为 src 是 word_t(uint32)，读出来高位就是0
+});
+
   INSTPAT("???? ????", inv,    N,    0, INV(s->pc));
   INSTPAT_END();
 }
