@@ -355,6 +355,12 @@ again:
   update_eflags(0, src, 1, res, w); // 2. 用 ADD 的逻辑更新所有标志位 (GP_IDX=0)
   cpu.eflags.CF = old_cf; // 3. 恢复 CF，假装无事发生
   });
+  INSTPAT("0010 1001", sub,       G2E,  0, {
+  word_t dest = ddest;
+  word_t res = dest - src1;
+  RMw(res);
+  update_eflags(5, dest, src1, res, w);
+});
 
   INSTPAT("???? ????", inv,       N,    0, INV(s->pc));//通配符
   INSTPAT_END();
