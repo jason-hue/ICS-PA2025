@@ -346,6 +346,7 @@ again:
   INSTPAT("0111 0101", jne,       J,    1, if (!cpu.eflags.ZF) s->dnpc += (int8_t)imm);
   INSTPAT("0011 1011", cmp,       E2G,  0, cmp(ddest, src1));
   INSTPAT("0011 1000", cmp,       G2E,  1, cmp(ddest, src1));
+  INSTPAT("1000 0101", test,      G2E,  0, test(ddest, src1));
   INSTPAT("0100 0???", inc,       N,    0, {
   int reg = opcode & 0x7;
   word_t src = Rr(reg, w);
