@@ -269,6 +269,11 @@ cpu.esp += w;\
   cpu.eflags.SF = (res >> (w * 8 - 1)) & 1; \
 } while (0)
 
+#define test(dest, src) do { \
+word_t res = dest & src; \
+update_eflags(4, dest, src, res, w); \
+} while (0)
+
 void _2byte_esc(Decode *s, bool is_operand_size_16) {
   uint8_t opcode = x86_inst_fetch(s, 1);
   INSTPAT_START();
@@ -331,7 +336,8 @@ again:
   INSTPAT("1111 1111", gp5,       E,    0, gp5());
   INSTPAT("0000 0001", add,       G2E,  0, { word_t dest = ddest; word_t res = dest + src1; RMw(res); update_eflags(0, dest, src1, res, w); });
   INSTPAT("0111 0100", je,        J,    1, if (cpu.eflags.ZF) s->dnpc += (int8_t)imm);
-  INSTPAT("1100 1001", leave, N, 0, cpu.esp = cpu.ebp; pop(cpu.ebp));
+  INSTPAT("1100 1001", leave,     N,    0, cpu.esp = cpu.ebp; pop(cpu.ebp));
+  INSTPAT("1000 0100", test,      G2E,  1, test(ddest, src1));
 
   INSTPAT("0011 1011", cmp, E2G, 0, { \
      word_t dest = Rr(rd, w); \
