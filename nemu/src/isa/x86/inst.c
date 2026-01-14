@@ -338,6 +338,7 @@ again:
   INSTPAT("0111 0100", je,        J,    1, if (cpu.eflags.ZF) s->dnpc += (int8_t)imm);
   INSTPAT("1100 1001", leave,     N,    0, cpu.esp = cpu.ebp; pop(cpu.ebp));
   INSTPAT("1000 0100", test,      G2E,  1, test(ddest, src1));
+  INSTPAT("0111 0101", jne,       J,    1, if (!cpu.eflags.ZF) s->dnpc += (int8_t)imm);
 
   INSTPAT("0011 1011", cmp, E2G, 0, { \
      word_t dest = Rr(rd, w); \
