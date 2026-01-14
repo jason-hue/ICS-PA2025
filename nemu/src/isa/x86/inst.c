@@ -260,50 +260,6 @@ cpu.esp += w;\
 *   /7: (Reserved)
  */
 
-#define MSB(n) ( ((n) >> (w * 8 - 1)) & 1 )
-#define gp2() do { \
-word_t dest = ddest; \
-word_t count = imm & 0x1f; \
-word_t res = 0; \
-\
-if (count == 0) break; \
-\
-switch (gp_idx) { \
-case 4: /* SHL/SAL */ \
-res = dest << count; \
-RMw(res); \
-cpu.eflags.CF = (dest >> (w * 8 - count)) & 1; \
-if (count == 1) { cpu.eflags.OF = (MSB(res) != MSB(dest)); } \
-break; \
-\
-case 5: /* SHR */ \
-res = dest >> count; \
-RMw(res); \
-cpu.eflags.CF = (dest >> (count - 1)) & 1; \
-if (count == 1) { cpu.eflags.OF = MSB(dest); } \
-break; \
-\
-case 7: /* SAR */ \
-{ \
-sword_t signed_dest = 0; \
-if (w == 1) signed_dest = (int8_t)dest; \
-else if (w == 2) signed_dest = (int16_t)dest; \
-else signed_dest = (int32_t)dest; \
-\
-res = signed_dest >> count; \
-RMw(res); \
-cpu.eflags.CF = (signed_dest >> (count - 1)) & 1; \
-if (count == 1) { cpu.eflags.OF = 0; } \
-} \
-break; \
-\
-default: panic("GP2 unimpl gp_idx=%d", gp_idx); \
-} \
-\
-cpu.eflags.ZF = (res == 0); \
-cpu.eflags.SF = MSB(res); \
-} while (0)
-
 #define xor(dest, src) do { \
   word_t res = dest ^ src; \
   RMw(res); \
@@ -391,8 +347,6 @@ again:
   INSTPAT("0011 1011", cmp,       E2G,  0, cmp(ddest, src1));
   INSTPAT("0011 1000", cmp,       G2E,  1, cmp(ddest, src1));
   INSTPAT("1000 0101", test,      G2E,  0, test(ddest, src1));
-  INSTPAT("1100 0001", gp2,       I2E,  0, gp2());
-
   INSTPAT("0100 0???", inc,       N,    0, {
   int reg = opcode & 0x7;
   word_t src = Rr(reg, w);
