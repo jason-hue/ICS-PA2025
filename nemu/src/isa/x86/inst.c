@@ -346,6 +346,15 @@ again:
   INSTPAT("0111 0101", jne,       J,    1, if (!cpu.eflags.ZF) s->dnpc += (int8_t)imm);
   INSTPAT("0011 1011", cmp,       E2G,  0, cmp(ddest, src1));
   INSTPAT("0011 1000", cmp,       G2E,  1, cmp(ddest, src1));
+  INSTPAT("0100 0???", inc,       N,    0, {
+  int reg = opcode & 0x7;
+  word_t src = Rr(reg, w);
+  word_t res = src + 1;
+  Rw(reg, w, res);
+  bool old_cf = cpu.eflags.CF; // 1. 备份 CF
+  update_eflags(0, src, 1, res, w); // 2. 用 ADD 的逻辑更新所有标志位 (GP_IDX=0)
+  cpu.eflags.CF = old_cf; // 3. 恢复 CF，假装无事发生
+  });
 
   INSTPAT("???? ????", inv,       N,    0, INV(s->pc));//通配符
   INSTPAT_END();
