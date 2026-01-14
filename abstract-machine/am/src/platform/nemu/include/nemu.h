@@ -7,7 +7,7 @@
                // it will be expanded as "x86/x86.h", "mips/mips32.h", ...
 
 #if defined(__ISA_X86__)
-# define nemu_trap(code) asm volatile ("int3" : :"a"(code))
+# define nemu_trap(code) asm volatile ("int3" : :"a"(code))//Intel 等价操作：mov eax, code(在执行int3之前)
 #elif defined(__ISA_MIPS32__)
 # define nemu_trap(code) asm volatile ("move $v0, %0; sdbbp" : :"r"(code))
 #elif defined(__riscv)

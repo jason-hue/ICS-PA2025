@@ -12,7 +12,7 @@ void putch(char ch) {
 }
 
 void halt(int code) {
-  nemu_trap(code);
+  nemu_trap(code);//code=0表明程序是正常结束，code!=0表明程序执行异常。code放进了eax，monitor从eax捞出值就可以判断程序是正常结束还是异常停止
 
   // should not reach here
   while (1);
