@@ -38,6 +38,7 @@ static void trace_and_difftest(Decode *_this, vaddr_t dnpc) {
   if (ITRACE_COND) { log_write("%s\n", _this->logbuf); }
 #endif
   if (g_print_step) { IFDEF(CONFIG_ITRACE, puts(_this->logbuf)); }
+  IFDEF(CONFIG_IRINGBUF, iringbuf_write(_this->logbuf));
   IFDEF(CONFIG_DIFFTEST, difftest_step(_this->pc, dnpc));
   
   WP *wp = scan_watchpoint();
@@ -99,6 +100,7 @@ static void statistic() {
 
 void assert_fail_msg() {
   isa_reg_display();
+  iringbuf_display();
   statistic();
 }
 
