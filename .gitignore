@@ -9,5 +9,6 @@
 !README.md
 !.gitignore
 !init.sh
+!/gen_compdb.sh
 /fceux-am
 /am-kernels
