@@ -84,6 +84,10 @@ static void execute(uint64_t n) {
     exec_once(&s, cpu.pc);//执行一条指令
     g_nr_guest_inst ++;//计数器加1
     trace_and_difftest(&s, cpu.pc);
+    
+    // [TEST] 埋入测试代码：执行 20 条指令后强制 Panic，验证 iringbuf
+    if (g_nr_guest_inst >= 20) panic("Time bomb: Testing iringbuf functionality!");
+
     if (nemu_state.state != NEMU_RUNNING) break;//将state改成stop就能实现暂停执行，本质上是打破了 CPU 的取指-执行循环。
     IFDEF(CONFIG_DEVICE, device_update());
   }
