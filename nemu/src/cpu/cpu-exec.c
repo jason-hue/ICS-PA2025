@@ -103,6 +103,7 @@ void assert_fail_msg() {
   isa_reg_display();
   iringbuf_display();
   statistic();
+  fflush(stdout);
 }
 
 /* Simulate how the CPU works. */
