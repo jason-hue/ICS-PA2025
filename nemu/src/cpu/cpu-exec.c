@@ -86,7 +86,7 @@ static void execute(uint64_t n) {
     trace_and_difftest(&s, cpu.pc);
 
     // [TEST] 埋入测试代码：执行 20 条指令后强制 Panic，验证 iringbuf
-    if (g_nr_guest_inst >= 3) panic("Time bomb: Testing iringbuf functionality!");
+    if (g_nr_guest_inst >= 10) panic("Time bomb: Testing iringbuf functionality!");
 
 
     if (nemu_state.state != NEMU_RUNNING) break;//将state改成stop就能实现暂停执行，本质上是打破了 CPU 的取指-执行循环。
