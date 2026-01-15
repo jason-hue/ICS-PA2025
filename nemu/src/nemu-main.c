@@ -20,8 +20,6 @@ void am_init_monitor();
 void engine_start();
 int is_exit_status_bad();
 
-void cpu_exec(uint64_t n);
-
 int main(int argc, char *argv[]) {
   /* Initialize the monitor. */
 #ifdef CONFIG_TARGET_AM
@@ -31,9 +29,7 @@ int main(int argc, char *argv[]) {
 #endif
 
   /* Start engine. */
-  // engine_start();
-  cpu_exec(5);
-  panic("Test iringbuf");
+  engine_start();
 
   return is_exit_status_bad();
 }

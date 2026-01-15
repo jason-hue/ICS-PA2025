@@ -99,7 +99,6 @@ static void statistic() {
 }
 
 void assert_fail_msg() {
-  printf("DEBUG: assert_fail_msg called\n");
   isa_reg_display();
   iringbuf_display();
   statistic();
