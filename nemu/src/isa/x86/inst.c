@@ -239,6 +239,7 @@ cpu.esp += w;\
     case 2: \
       push(s->snpc); \
       s->dnpc = dsrc1; \
+      IFDEF(CONFIG_FTRACE, ftrace_write(s->pc, s->dnpc, true)); \
       break; \
     case 4: \
       s->dnpc = dsrc1; \
@@ -329,14 +330,15 @@ again:
   INSTPAT("0101 0???", push,      N,    0, push(Rr(opcode & 0x7,w)));
   INSTPAT("0101 1???", pop,       N,    0, { word_t val; pop(val); Rw(opcode & 0x7, w, val); });
   INSTPAT("0110 1000", push,      I,    0, push(imm));
+  INSTPAT("0110 1010", push,      N,    0, { word_t val = (int8_t)x86_inst_fetch(s, 1); push(val); s->dnpc = s->snpc; });
   INSTPAT("1100 0110", mov,       I2E,  1, RMw(imm));
   INSTPAT("1100 0111", mov,       I2E,  0, RMw(imm));
   INSTPAT("1100 1100", nemu_trap, N,    0, NEMUTRAP(s->pc, cpu.eax));
-  INSTPAT("1110 1000", call,      J,    0, push(s->snpc);s->dnpc = s->snpc + imm);
+  INSTPAT("1110 1000", call,      J,    0, push(s->snpc);s->dnpc = s->snpc + imm; IFDEF(CONFIG_FTRACE, ftrace_write(s->pc, s->dnpc, true)););
   INSTPAT("1000 0011", gp1,       SI2E, 0, gp1());
   INSTPAT("0011 0001", xor,       G2E,  0, xor(ddest,src1));
   INSTPAT("1000 1111", pop,       E,    0, { word_t val; pop(val); RMw(val); });
-  INSTPAT("1100 0011", ret,       N,    0, pop(s->dnpc));
+  INSTPAT("1100 0011", ret,       N,    0, pop(s->dnpc); IFDEF(CONFIG_FTRACE, ftrace_write(s->pc, s->dnpc, false)););
   INSTPAT("1000 1101", lea,       E2G,  0, Rw(rd,w,addr));
   INSTPAT("1111 1111", gp5,       E,    0, gp5());
   INSTPAT("0000 0001", add,       G2E,  0, { word_t dest = ddest; word_t res = dest + src1; RMw(res); update_eflags(0, dest, src1, res, w); });
@@ -345,6 +347,7 @@ again:
   INSTPAT("1000 0100", test,      G2E,  1, test(ddest, src1));
   INSTPAT("0111 0101", jne,       J,    1, if (!cpu.eflags.ZF) s->dnpc += (int8_t)imm);
   INSTPAT("0011 1011", cmp,       E2G,  0, cmp(ddest, src1));
+  INSTPAT("0011 1001", cmp,       G2E,  0, cmp(ddest, src1));
   INSTPAT("0011 1000", cmp,       G2E,  1, cmp(ddest, src1));
   INSTPAT("1000 0101", test,      G2E,  0, test(ddest, src1));
   INSTPAT("0100 0???", inc,       N,    0, {

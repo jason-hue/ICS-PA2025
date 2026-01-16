@@ -76,4 +76,7 @@ uint64_t get_time();
 void iringbuf_write(const char *log);
 void iringbuf_display();
 
+void init_ftrace(const char *elf_file);
+void ftrace_write(paddr_t pc, paddr_t target, bool is_call);
+
 #endif
