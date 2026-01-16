@@ -18,6 +18,9 @@
 #include <cpu/ifetch.h>
 #include <cpu/decode.h>
 
+uint32_t pio_read(ioaddr_t addr, int len);
+void pio_write(ioaddr_t addr, int len, uint32_t data);
+
 typedef union {
   struct {
     uint8_t R_M		:3;
@@ -165,6 +168,7 @@ static void decode_operand(Decode *s, uint8_t opcode, int *rd_, word_t *src1,
     word_t *addr, int *rs, int *gp_idx, word_t *imm, int w, int type) {
   switch (type) {
     case TYPE_I2r:  destr(opcode & 0x7); imm(); break;
+    case TYPE_I2a:  destr(R_EAX); imm(); break;
     case TYPE_G2E:  decode_rm(s, rd_, addr, rs, w); src1r(*rs); break;//reg字段是源寄存器编号,看数据流向可以得出，为0则reg为源。适用范围：ADD, OR, ADC, SBB, AND, SUB, XOR, CMP, MOV。
     case TYPE_E2G:  decode_rm(s, rs, addr, rd_, w); break;//reg字段是目的寄存器编号，看opcode低位第2位，为1则reg为目的，不适用范围：LEA, PUSH, POP, INC, DEC 等功能单一的指令。
     case TYPE_I2E:  decode_rm(s, rd_, addr, gp_idx, w); imm(); break;
@@ -174,7 +178,10 @@ static void decode_operand(Decode *s, uint8_t opcode, int *rd_, word_t *src1,
     case TYPE_I:    imm(); break;
     case TYPE_J:    imm(); break;
     case TYPE_SI2E: decode_rm(s, rd_, addr, gp_idx, w); simm(1);break;
-    case TYPE_E:    decode_rm(s,   rs, addr, gp_idx, w);break;
+    case TYPE_E:    decode_rm(s,   rd_, addr, gp_idx, w); *rs = *rd_; break;
+    case TYPE_1_E:  decode_rm(s, rd_, addr, gp_idx, w); *imm = 1; break;
+    case TYPE_cl2E: decode_rm(s, rd_, addr, gp_idx, w); *imm = reg_b(R_CL); break;
+    case TYPE_Ib2E: decode_rm(s, rd_, addr, gp_idx, w); *imm = x86_inst_fetch(s, 1); break;
     default: panic("Unsupported type = %d", type);
   }
 }
@@ -200,7 +207,10 @@ static inline void update_eflags(int gp_idx, word_t dest, word_t src, word_t res
     cpu.eflags.CF = 0;
   }
 
-  // AND, OR, XOR 等指令通常会清空 CF/OF，这里暂略
+  if (gp_idx == 1 || gp_idx == 4 || gp_idx == 6) {
+    cpu.eflags.CF = 0;
+    cpu.eflags.OF = 0;
+  }
 }
 
 #define push(val) do { \
@@ -218,10 +228,14 @@ cpu.esp += w;\
   word_t src = imm; \
   word_t res = 0; \
   switch (gp_idx) { \
-    case 0: res = dest + src; RMw(res); update_eflags(0, dest, src, res, w); break; /* ADD */ \
-    case 5: res = dest - src; RMw(res); update_eflags(5, dest, src, res, w); break; /* SUB */ \
-    case 4: RMw(dest & src);update_eflags(4,dest,src,res,w);break; /* AND */\
-    case 7: res = dest - src;  update_eflags(7, dest, src, res, w); break;\
+    case 0: res = dest + src; RMw(res); update_eflags(0, dest, src, res, w); break; \
+    case 1: res = dest | src; RMw(res); update_eflags(1, dest, src, res, w); break; \
+    case 2: adc(dest, src); break; \
+    case 3: sbb(dest, src); break; \
+    case 4: res = dest & src; RMw(res); update_eflags(4, dest, src, res, w); break; \
+    case 5: res = dest - src; RMw(res); update_eflags(5, dest, src, res, w); break; \
+    case 6: res = dest ^ src; RMw(res); update_eflags(6, dest, src, res, w); break; \
+    case 7: res = dest - src; update_eflags(7, dest, src, res, w); break; \
     default: INV(s->pc); \
   }; \
 } while (0)
@@ -236,6 +250,24 @@ cpu.esp += w;\
 
 #define gp5() do{ \
   switch (gp_idx){ \
+    case 0: { \
+      word_t dest = ddest; \
+      word_t res = dest + 1; \
+      RMw(res); \
+      bool old_cf = cpu.eflags.CF; \
+      update_eflags(0, dest, 1, res, w); \
+      cpu.eflags.CF = old_cf; \
+      break; \
+    } \
+    case 1: { \
+      word_t dest = ddest; \
+      word_t res = dest - 1; \
+      RMw(res); \
+      bool old_cf = cpu.eflags.CF; \
+      update_eflags(5, dest, 1, res, w); \
+      cpu.eflags.CF = old_cf; \
+      break; \
+    } \
     case 2: \
       push(s->snpc); \
       s->dnpc = dsrc1; \
@@ -261,11 +293,167 @@ cpu.esp += w;\
 *   /7: (Reserved)
  */
 
+#define gp2() do { \
+  uint32_t count = imm & 0x1f; \
+  word_t dest = ddest; \
+  word_t res = dest; \
+  switch (gp_idx) { \
+    case 4: \
+      res = dest << count; \
+      RMw(res); \
+      cpu.eflags.ZF = (res == 0); \
+      cpu.eflags.SF = (res >> (w*8-1)) & 1; \
+      if (count > 0) cpu.eflags.CF = (dest >> (w*8 - count)) & 1; \
+      break; \
+    case 5: \
+      res = dest >> count; \
+      RMw(res); \
+      cpu.eflags.ZF = (res == 0); \
+      cpu.eflags.SF = (res >> (w*8-1)) & 1; \
+      if (count > 0) cpu.eflags.CF = (dest >> (count - 1)) & 1; \
+      break; \
+    case 7: \
+      if (w == 1) res = (int8_t)dest >> count; \
+      else if (w == 2) res = (int16_t)dest >> count; \
+      else res = (int32_t)dest >> count; \
+      RMw(res); \
+      cpu.eflags.ZF = (res == 0); \
+      cpu.eflags.SF = (res >> (w*8-1)) & 1; \
+      if (count > 0) cpu.eflags.CF = (dest >> (count - 1)) & 1; \
+      break; \
+    default: panic("gp2: %d", gp_idx); \
+  } \
+} while (0)
+
+#define gp3() do { \
+  switch (gp_idx) { \
+    case 0: { word_t imm_val = x86_inst_fetch(s, w); s->dnpc = s->snpc; test(ddest, imm_val); break; } \
+    case 2: RMw(~ddest); break; /* not */ \
+    case 3: { \
+      word_t dest = ddest; \
+      word_t res = -dest; \
+      RMw(res); \
+      update_eflags(5, 0, dest, res, w); /* neg is like 0 - dest */ \
+      if (dest != 0) cpu.eflags.CF = 1; else cpu.eflags.CF = 0; \
+      break; \
+    } \
+    case 4: /* mul */ \
+      if (w == 1) { \
+        uint16_t res = (uint16_t)cpu.al * (uint16_t)ddest; \
+        cpu.ax = res; \
+        cpu.eflags.CF = cpu.eflags.OF = (cpu.ah != 0); \
+      } else { \
+        uint64_t res = (uint64_t)Rr(R_EAX, w) * (uint64_t)ddest; \
+        if (w == 2) { \
+          cpu.ax = res & 0xffff; \
+          cpu.dx = res >> 16; \
+          cpu.eflags.CF = cpu.eflags.OF = (cpu.dx != 0); \
+        } else { \
+          cpu.eax = res & 0xffffffff; \
+          cpu.edx = res >> 32; \
+          cpu.eflags.CF = cpu.eflags.OF = (cpu.edx != 0); \
+        } \
+      } \
+      break; \
+    case 5: /* imul */ \
+      if (w == 1) { \
+        int16_t res = (int16_t)(int8_t)cpu.al * (int16_t)(int8_t)ddest; \
+        cpu.ax = res; \
+        cpu.eflags.CF = cpu.eflags.OF = (res != (int8_t)res); \
+      } else { \
+        int64_t res = (int64_t)(sword_t)Rr(R_EAX, w) * (int64_t)(sword_t)ddest; \
+        if (w == 2) { \
+          cpu.ax = res & 0xffff; \
+          cpu.dx = res >> 16; \
+          cpu.eflags.CF = cpu.eflags.OF = (res != (int16_t)res); \
+        } else { \
+          cpu.eax = res & 0xffffffff; \
+          cpu.edx = res >> 32; \
+          cpu.eflags.CF = cpu.eflags.OF = (res != (int32_t)res); \
+        } \
+      } \
+      break; \
+    case 6: /* div */ \
+      if (w == 1) { \
+        uint16_t val = cpu.ax; \
+        uint8_t src = ddest; \
+        if (src == 0) panic("Divide by zero"); \
+        cpu.al = val / src; \
+        cpu.ah = val % src; \
+      } else { \
+        uint64_t val = (w == 2 ? ((uint32_t)cpu.dx << 16) | cpu.ax : ((uint64_t)cpu.edx << 32) | cpu.eax); \
+        word_t src = ddest; \
+        if (src == 0) panic("Divide by zero"); \
+        uint64_t quot = val / src; \
+        uint64_t rem = val % src; \
+        if (w == 2) { cpu.ax = quot; cpu.dx = rem; } \
+        else { cpu.eax = quot; cpu.edx = rem; } \
+      } \
+      break; \
+    case 7: /* idiv */ \
+      if (w == 1) { \
+        int16_t val = (int16_t)cpu.ax; \
+        int8_t src = (int8_t)ddest; \
+        if (src == 0) panic("Divide by zero"); \
+        cpu.al = val / src; \
+        cpu.ah = val % src; \
+      } else { \
+        int64_t val = (w == 2 ? ((int32_t)(int16_t)cpu.dx << 16) | cpu.ax : ((int64_t)(int32_t)cpu.edx << 32) | cpu.eax); \
+        sword_t src = (sword_t)ddest; \
+        if (src == 0) panic("Divide by zero"); \
+        int64_t quot = val / src; \
+        int64_t rem = val % src; \
+        if (w == 2) { cpu.ax = quot; cpu.dx = rem; } \
+        else { cpu.eax = quot; cpu.edx = rem; } \
+      } \
+      break; \
+    default: panic("gp3: %d", gp_idx); \
+  } \
+} while (0)
+
+#define or(dest, src) do { \
+  word_t res = dest | src; \
+  RMw(res); \
+  update_eflags(1, dest, src, res, w); \
+} while(0)
+
+#define and(dest, src) do { \
+  word_t res = dest & src; \
+  RMw(res); \
+  update_eflags(4, dest, src, res, w); \
+} while(0)
+
 #define xor(dest, src) do { \
   word_t res = dest ^ src; \
   RMw(res); \
   cpu.eflags.CF = 0; \
   cpu.eflags.OF = 0; \
+  cpu.eflags.ZF = (res == 0); \
+  cpu.eflags.SF = (res >> (w * 8 - 1)) & 1; \
+} while (0)
+
+#define adc(dest, src) do { \
+  word_t carry = cpu.eflags.CF; \
+  uint64_t full = (uint64_t)dest + (uint64_t)src + carry; \
+  word_t res = (word_t)full; \
+  RMw(res); \
+  cpu.eflags.CF = (full >> (w * 8)) & 1; \
+  word_t src_with_carry = src + carry; \
+  word_t sign_mask = (word_t)1 << (w * 8 - 1); \
+  cpu.eflags.OF = (~(dest ^ src_with_carry) & (dest ^ res) & sign_mask) != 0; \
+  cpu.eflags.ZF = (res == 0); \
+  cpu.eflags.SF = (res >> (w * 8 - 1)) & 1; \
+} while (0)
+
+#define sbb(dest, src) do { \
+  word_t borrow = cpu.eflags.CF; \
+  uint64_t sub = (uint64_t)src + borrow; \
+  word_t res = dest - sub; \
+  RMw(res); \
+  cpu.eflags.CF = dest < sub; \
+  word_t src_with_borrow = src + borrow; \
+  word_t sign_mask = (word_t)1 << (w * 8 - 1); \
+  cpu.eflags.OF = ((dest ^ src_with_borrow) & (dest ^ res) & sign_mask) != 0; \
   cpu.eflags.ZF = (res == 0); \
   cpu.eflags.SF = (res >> (w * 8 - 1)) & 1; \
 } while (0)
@@ -283,18 +471,81 @@ update_eflags(5, dest, src, res, w); \
 void _2byte_esc(Decode *s, bool is_operand_size_16) {
   uint8_t opcode = x86_inst_fetch(s, 1);
   INSTPAT_START();
-  INSTPAT("1001 0100", setcc, E, 1, {
-     word_t val = cpu.eflags.ZF;
-     if (rs != -1) Rw(rs, 1, val); else Mw(addr, 1, val);
-     // 宽度强制为 1
- });
+
+  INSTPAT("1001 ????", setcc, E, 1, {
+    int cond = opcode & 0xf;
+    bool set = false;
+    switch (cond) {
+      case 0: set = cpu.eflags.OF; break;
+      case 1: set = !cpu.eflags.OF; break;
+      case 2: set = cpu.eflags.CF; break;
+      case 3: set = !cpu.eflags.CF; break;
+      case 4: set = cpu.eflags.ZF; break;
+      case 5: set = !cpu.eflags.ZF; break;
+      case 6: set = cpu.eflags.CF || cpu.eflags.ZF; break;
+      case 7: set = !cpu.eflags.CF && !cpu.eflags.ZF; break;
+      case 8: set = cpu.eflags.SF; break;
+      case 9: set = !cpu.eflags.SF; break;
+      case 10: set = false; break;
+      case 11: set = false; break;
+      case 12: set = cpu.eflags.SF != cpu.eflags.OF; break;
+      case 13: set = cpu.eflags.SF == cpu.eflags.OF; break;
+      case 14: set = cpu.eflags.ZF || (cpu.eflags.SF != cpu.eflags.OF); break;
+      case 15: set = !cpu.eflags.ZF && (cpu.eflags.SF == cpu.eflags.OF); break;
+    }
+    RMw(set ? 1 : 0);
+  });
 
   INSTPAT("1011 0110", movzx, E2G, 0, {
     word_t src = (rs != -1 ? Rr(rs, 1) : Mr(addr, 1)); // 强制宽 1
     Rw(rd, w, src); // 零扩展是自动的，因为 src 是 word_t(uint32)，读出来高位就是0
 });
+  INSTPAT("1011 0111", movzx, E2G, 0, {
+    word_t src = (rs != -1 ? Rr(rs, 2) : Mr(addr, 2));
+    Rw(rd, w, src);
+  });
+  INSTPAT("1011 1110", movsx, E2G, 0, {
+    word_t src = (rs != -1 ? Rr(rs, 1) : Mr(addr, 1));
+    Rw(rd, w, SEXT(src, 8));
+  });
+  INSTPAT("1011 1111", movsx, E2G, 0, {
+    word_t src = (rs != -1 ? Rr(rs, 2) : Mr(addr, 2));
+    Rw(rd, w, SEXT(src, 16));
+  });
+  INSTPAT("1010 1111", imul2, E2G, 0, {
+    word_t src = dsrc1;
+    sword_t res = (sword_t)ddest * (sword_t)src;
+    Rw(rd, w, res);
+    int64_t full = (int64_t)(sword_t)ddest * (int64_t)(sword_t)src;
+    cpu.eflags.CF = cpu.eflags.OF = (res != full);
+  });
+  INSTPAT("1000 ????", jcc, J, 0, {
+
+    int cond = opcode & 0xf;
+    bool jump = false;
+    switch(cond) {
+      case 0: jump = cpu.eflags.OF; break; // jo
+      case 1: jump = !cpu.eflags.OF; break; // jno
+      case 2: jump = cpu.eflags.CF; break; // jb
+      case 3: jump = !cpu.eflags.CF; break; // jae
+      case 4: jump = cpu.eflags.ZF; break; // je
+      case 5: jump = !cpu.eflags.ZF; break; // jne
+      case 6: jump = cpu.eflags.CF || cpu.eflags.ZF; break; // jbe
+      case 7: jump = !cpu.eflags.CF && !cpu.eflags.ZF; break; // ja
+      case 8: jump = cpu.eflags.SF; break; // js
+      case 9: jump = !cpu.eflags.SF; break; // jns
+      case 10: panic("JP not implemented"); break; // jp
+      case 11: panic("JNP not implemented"); break; // jnp
+      case 12: jump = cpu.eflags.SF != cpu.eflags.OF; break; // jl
+      case 13: jump = cpu.eflags.SF == cpu.eflags.OF; break; // jge
+      case 14: jump = cpu.eflags.ZF || (cpu.eflags.SF != cpu.eflags.OF); break; // jle
+      case 15: jump = !cpu.eflags.ZF && (cpu.eflags.SF == cpu.eflags.OF); break; // jg
+    }
+    if (jump) s->dnpc += imm;
+  });
 
   INSTPAT("???? ????", inv,    N,    0, INV(s->pc));
+
   INSTPAT_END();
 }
 
@@ -314,7 +565,17 @@ again:
 
   INSTPAT("0110 0110", data_size, N,    0, is_operand_size_16 = true; goto again;);
 
+  INSTPAT("1001 1001", cltd,      N,    0, { if (w==4) cpu.edx = (int32_t)cpu.eax >> 31; else cpu.dx = (int16_t)cpu.ax >> 15; });
+  INSTPAT("1111 0110", gp3,       E,    1, gp3());
+  INSTPAT("1111 0111", gp3,       E,    0, gp3());
+  INSTPAT("1100 0000", gp2,       Ib2E,  1, gp2());
+  INSTPAT("1100 0001", gp2,       Ib2E,  0, gp2());
+  INSTPAT("1101 0000", gp2,       1_E,  1, gp2());
+  INSTPAT("1101 0001", gp2,       1_E,  0, gp2());
+  INSTPAT("1101 0010", gp2,       cl2E, 1, gp2());
+  INSTPAT("1101 0011", gp2,       cl2E,  0, gp2());
   INSTPAT("1000 0000", gp1,       I2E,  1, gp1());
+  INSTPAT("1000 0001", gp1,       I2E,  0, gp1());
   INSTPAT("1000 1000", mov,       G2E,  1, RMw(src1));
   INSTPAT("1000 1001", mov,       G2E,  0, RMw(src1));
   INSTPAT("1000 1010", mov,       E2G,  1, Rw(rd, w, RMr(rs, w)));
@@ -335,21 +596,85 @@ again:
   INSTPAT("1100 0111", mov,       I2E,  0, RMw(imm));
   INSTPAT("1100 1100", nemu_trap, N,    0, NEMUTRAP(s->pc, cpu.eax));
   INSTPAT("1110 1000", call,      J,    0, push(s->snpc);s->dnpc = s->snpc + imm; IFDEF(CONFIG_FTRACE, ftrace_write(s->pc, s->dnpc, true)););
+  INSTPAT("1110 1001", jmp,       J,    0, s->dnpc += imm);
+  INSTPAT("1110 1011", jmp,       J,    1, s->dnpc += (int8_t)imm);
+  INSTPAT("1110 0100", in,        N,    1, { ioaddr_t port = x86_inst_fetch(s, 1); s->dnpc = s->snpc; (void)port; word_t val = 0; IFDEF(CONFIG_DEVICE, val = pio_read(port, 1)); Rw(R_EAX, 1, val); });
+  INSTPAT("1110 0101", in,        N,    0, { ioaddr_t port = x86_inst_fetch(s, 1); s->dnpc = s->snpc; (void)port; word_t val = 0; IFDEF(CONFIG_DEVICE, val = pio_read(port, w)); Rw(R_EAX, w, val); });
+  INSTPAT("1110 0110", out,       N,    1, { ioaddr_t port = x86_inst_fetch(s, 1); s->dnpc = s->snpc; (void)port; IFDEF(CONFIG_DEVICE, pio_write(port, 1, Rr(R_EAX, 1))); });
+  INSTPAT("1110 0111", out,       N,    0, { ioaddr_t port = x86_inst_fetch(s, 1); s->dnpc = s->snpc; (void)port; IFDEF(CONFIG_DEVICE, pio_write(port, w, Rr(R_EAX, w))); });
+  INSTPAT("1110 1100", in,        N,    1, { ioaddr_t port = cpu.edx; (void)port; word_t val = 0; IFDEF(CONFIG_DEVICE, val = pio_read(port, 1)); Rw(R_EAX, 1, val); });
+  INSTPAT("1110 1101", in,        N,    0, { ioaddr_t port = cpu.edx; (void)port; word_t val = 0; IFDEF(CONFIG_DEVICE, val = pio_read(port, w)); Rw(R_EAX, w, val); });
+  INSTPAT("1110 1110", out,       N,    1, { ioaddr_t port = cpu.edx; (void)port; IFDEF(CONFIG_DEVICE, pio_write(port, 1, Rr(R_EAX, 1))); });
+  INSTPAT("1110 1111", out,       N,    0, { ioaddr_t port = cpu.edx; (void)port; IFDEF(CONFIG_DEVICE, pio_write(port, w, Rr(R_EAX, w))); });
   INSTPAT("1000 0011", gp1,       SI2E, 0, gp1());
-  INSTPAT("0011 0001", xor,       G2E,  0, xor(ddest,src1));
+  INSTPAT("0000 1000", or,        G2E,  1, or(ddest, dsrc1));
+  INSTPAT("0000 1001", or,        G2E,  0, or(ddest, dsrc1));
+  INSTPAT("0000 1010", or,        E2G,  1, or(ddest, dsrc1));
+  INSTPAT("0000 1011", or,        E2G,  0, or(ddest, dsrc1));
+  INSTPAT("0010 0000", and,       G2E,  1, and(ddest, dsrc1));
+  INSTPAT("0010 0001", and,       G2E,  0, and(ddest, dsrc1));
+  INSTPAT("0010 0010", and,       E2G,  1, and(ddest, dsrc1));
+  INSTPAT("0010 0011", and,       E2G,  0, and(ddest, dsrc1));
+  INSTPAT("0010 0100", and,       I2a,  1, and(Rr(R_EAX, 1), imm));
+  INSTPAT("0010 0101", and,       I2a,  0, and(Rr(R_EAX, w), imm));
+  INSTPAT("0011 0000", xor,       G2E,  1, xor(ddest,dsrc1));
+  INSTPAT("0011 0001", xor,       G2E,  0, xor(ddest,dsrc1));
+  INSTPAT("0011 0010", xor,       E2G,  1, xor(ddest,dsrc1));
+  INSTPAT("0011 0011", xor,       E2G,  0, xor(ddest,dsrc1));
   INSTPAT("1000 1111", pop,       E,    0, { word_t val; pop(val); RMw(val); });
   INSTPAT("1100 0011", ret,       N,    0, pop(s->dnpc); IFDEF(CONFIG_FTRACE, ftrace_write(s->pc, s->dnpc, false)););
   INSTPAT("1000 1101", lea,       E2G,  0, Rw(rd,w,addr));
   INSTPAT("1111 1111", gp5,       E,    0, gp5());
-  INSTPAT("0000 0001", add,       G2E,  0, { word_t dest = ddest; word_t res = dest + src1; RMw(res); update_eflags(0, dest, src1, res, w); });
-  INSTPAT("0111 0100", je,        J,    1, if (cpu.eflags.ZF) s->dnpc += (int8_t)imm);
+  INSTPAT("0000 0000", add,       G2E,  1, { word_t dest = ddest; word_t src = dsrc1; word_t res = dest + src; RMw(res); update_eflags(0, dest, src, res, w); });
+  INSTPAT("0000 0001", add,       G2E,  0, { word_t dest = ddest; word_t src = dsrc1; word_t res = dest + src; RMw(res); update_eflags(0, dest, src, res, w); });
+  INSTPAT("0000 0010", add,       E2G,  1, { word_t dest = ddest; word_t src = dsrc1; word_t res = dest + src; Rw(rd, w, res); update_eflags(0, dest, src, res, w); });
+  INSTPAT("0000 0011", add,       E2G,  0, { word_t dest = ddest; word_t src = dsrc1; word_t res = dest + src; Rw(rd, w, res); update_eflags(0, dest, src, res, w); });
+  INSTPAT("0000 0100", add,       I2a,  1, { word_t dest = Rr(R_EAX, 1); word_t src = imm; word_t res = dest + src; Rw(R_EAX, 1, res); update_eflags(0, dest, src, res, 1); });
+  INSTPAT("0000 0101", add,       I2a,  0, { word_t dest = Rr(R_EAX, w); word_t src = imm; word_t res = dest + src; Rw(R_EAX, w, res); update_eflags(0, dest, src, res, w); });
+  INSTPAT("0001 0000", adc,       G2E,  1, adc(ddest, dsrc1));
+  INSTPAT("0001 0001", adc,       G2E,  0, adc(ddest, dsrc1));
+  INSTPAT("0001 0010", adc,       E2G,  1, adc(ddest, dsrc1));
+  INSTPAT("0001 0011", adc,       E2G,  0, adc(ddest, dsrc1));
+  INSTPAT("0001 0100", adc,       I2a,  1, adc(Rr(R_EAX, 1), imm));
+  INSTPAT("0001 0101", adc,       I2a,  0, adc(Rr(R_EAX, w), imm));
+  INSTPAT("0001 1000", sbb,       G2E,  1, sbb(ddest, dsrc1));
+  INSTPAT("0001 1001", sbb,       G2E,  0, sbb(ddest, dsrc1));
+  INSTPAT("0001 1010", sbb,       E2G,  1, sbb(ddest, dsrc1));
+  INSTPAT("0001 1011", sbb,       E2G,  0, sbb(ddest, dsrc1));
+  INSTPAT("0001 1100", sbb,       I2a,  1, sbb(Rr(R_EAX, 1), imm));
+  INSTPAT("0001 1101", sbb,       I2a,  0, sbb(Rr(R_EAX, w), imm));
+  INSTPAT("1001 0000", nop,       N,    0, );
+  INSTPAT("0111 ????", jcc, J, 1, {
+    int cond = opcode & 0xf;
+    bool jump = false;
+    switch(cond) {
+      case 0: jump = cpu.eflags.OF; break; // jo
+      case 1: jump = !cpu.eflags.OF; break; // jno
+      case 2: jump = cpu.eflags.CF; break; // jb
+      case 3: jump = !cpu.eflags.CF; break; // jae
+      case 4: jump = cpu.eflags.ZF; break; // je
+      case 5: jump = !cpu.eflags.ZF; break; // jne
+      case 6: jump = cpu.eflags.CF || cpu.eflags.ZF; break; // jbe
+      case 7: jump = !cpu.eflags.CF && !cpu.eflags.ZF; break; // ja
+      case 8: jump = cpu.eflags.SF; break; // js
+      case 9: jump = !cpu.eflags.SF; break; // jns
+      case 10: panic("JP not implemented"); break; // jp
+      case 11: panic("JNP not implemented"); break; // jnp
+      case 12: jump = cpu.eflags.SF != cpu.eflags.OF; break; // jl
+      case 13: jump = cpu.eflags.SF == cpu.eflags.OF; break; // jge
+      case 14: jump = cpu.eflags.ZF || (cpu.eflags.SF != cpu.eflags.OF); break; // jle
+      case 15: jump = !cpu.eflags.ZF && (cpu.eflags.SF == cpu.eflags.OF); break; // jg
+    }
+    if (jump) s->dnpc += (int8_t)imm;
+  });
   INSTPAT("1100 1001", leave,     N,    0, cpu.esp = cpu.ebp; pop(cpu.ebp));
-  INSTPAT("1000 0100", test,      G2E,  1, test(ddest, src1));
-  INSTPAT("0111 0101", jne,       J,    1, if (!cpu.eflags.ZF) s->dnpc += (int8_t)imm);
-  INSTPAT("0011 1011", cmp,       E2G,  0, cmp(ddest, src1));
-  INSTPAT("0011 1001", cmp,       G2E,  0, cmp(ddest, src1));
-  INSTPAT("0011 1000", cmp,       G2E,  1, cmp(ddest, src1));
-  INSTPAT("1000 0101", test,      G2E,  0, test(ddest, src1));
+  INSTPAT("0011 1011", cmp,       E2G,  0, cmp(ddest, dsrc1));
+  INSTPAT("0011 1001", cmp,       G2E,  0, cmp(ddest, dsrc1));
+  INSTPAT("0011 1000", cmp,       G2E,  1, cmp(ddest, dsrc1));
+  INSTPAT("0011 1100", cmp,       I2a,  1, cmp(Rr(R_EAX, 1), imm));
+  INSTPAT("0011 1101", cmp,       I2a,  0, cmp(Rr(R_EAX, w), imm));
+  INSTPAT("1000 0100", test,      G2E,  1, test(ddest, dsrc1));
+  INSTPAT("1000 0101", test,      G2E,  0, test(ddest, dsrc1));
   INSTPAT("0100 0???", inc,       N,    0, {
   int reg = opcode & 0x7;
   word_t src = Rr(reg, w);
@@ -359,11 +684,56 @@ again:
   update_eflags(0, src, 1, res, w); // 2. 用 ADD 的逻辑更新所有标志位 (GP_IDX=0)
   cpu.eflags.CF = old_cf; // 3. 恢复 CF，假装无事发生
   });
+  INSTPAT("0100 1???", dec,       N,    0, {
+  int reg = opcode & 0x7;
+  word_t src = Rr(reg, w);
+  word_t res = src - 1;
+  Rw(reg, w, res);
+  bool old_cf = cpu.eflags.CF;
+  update_eflags(5, src, 1, res, w); // SUB logic
+  cpu.eflags.CF = old_cf;
+  });
+  INSTPAT("0010 1000", sub,       G2E,  1, {
+  word_t dest = ddest;
+  word_t src = dsrc1;
+  word_t res = dest - src;
+  RMw(res);
+  update_eflags(5, dest, src, res, w);
+});
   INSTPAT("0010 1001", sub,       G2E,  0, {
   word_t dest = ddest;
-  word_t res = dest - src1;
+  word_t src = dsrc1;
+  word_t res = dest - src;
   RMw(res);
-  update_eflags(5, dest, src1, res, w);
+  update_eflags(5, dest, src, res, w);
+});
+  INSTPAT("0010 1010", sub,       E2G,  1, {
+  word_t dest = ddest;
+  word_t src = dsrc1;
+  word_t res = dest - src;
+  Rw(rd, w, res);
+  update_eflags(5, dest, src, res, w);
+});
+  INSTPAT("0010 1011", sub,       E2G,  0, {
+  word_t dest = ddest;
+  word_t src = dsrc1;
+  word_t res = dest - src;
+  Rw(rd, w, res);
+  update_eflags(5, dest, src, res, w);
+});
+  INSTPAT("0010 1100", sub,       I2a,  1, {
+  word_t dest = Rr(R_EAX, 1);
+  word_t src = imm;
+  word_t res = dest - src;
+  Rw(R_EAX, 1, res);
+  update_eflags(5, dest, src, res, 1);
+});
+  INSTPAT("0010 1101", sub,       I2a,  0, {
+  word_t dest = Rr(R_EAX, w);
+  word_t src = imm;
+  word_t res = dest - src;
+  Rw(R_EAX, w, res);
+  update_eflags(5, dest, src, res, w);
 });
 
   INSTPAT("???? ????", inv,       N,    0, INV(s->pc));//通配符
