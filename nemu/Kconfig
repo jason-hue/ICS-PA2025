@@ -156,6 +156,15 @@ config IRINGBUF
   bool "Enable ring buffer for instruction trace"
   default y
 
+config MTRACE
+  bool "Enable memory tracer"
+  default y
+
+config MTRACE_COND
+  depends on MTRACE
+  string "Only trace memory accesses when the condition is true"
+  default "true"
+
 
 config DIFFTEST
   depends on TARGET_NATIVE_ELF
