@@ -54,12 +54,12 @@ void init_ftrace(const char *elf_file) {
     Log("Invalid ELF file '%s'", elf_file);
     fclose(fp);
     return;
-  }
+  }//e_ident是Header的第一个字段
 
   // Load Section Headers
-  Elf64_Shdr *shdrs = malloc(sizeof(Elf64_Shdr) * ehdr.e_shnum);
-  fseek(fp, ehdr.e_shoff, SEEK_SET);
-  assert(fread(shdrs, sizeof(Elf64_Shdr), ehdr.e_shnum, fp) == ehdr.e_shnum);
+  Elf64_Shdr *shdrs = malloc(sizeof(Elf64_Shdr) * ehdr.e_shnum);//shdrs是一个数组
+  fseek(fp, ehdr.e_shoff, SEEK_SET);//fp指向shdrs入口
+  assert(fread(shdrs, sizeof(Elf64_Shdr), ehdr.e_shnum, fp) == ehdr.e_shnum);//e_shnum代表有几个section Header
 
   // Find .symtab and .strtab
   // We look for SHT_SYMTAB
@@ -76,7 +76,7 @@ void init_ftrace(const char *elf_file) {
       assert(fread(symtab, shdrs[i].sh_size, 1, fp) == 1);
 
       // Load associated string table
-      int strtab_idx = shdrs[i].sh_link;
+      int strtab_idx = shdrs[i].sh_link;//sh_link 存储的是节区头部表（Section Header Table）中的下标（Index）
       long strtab_offset = shdrs[strtab_idx].sh_offset;
       long strtab_size = shdrs[strtab_idx].sh_size;
       strtab = malloc(strtab_size);

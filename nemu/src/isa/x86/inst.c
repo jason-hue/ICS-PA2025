@@ -188,19 +188,22 @@ static void decode_operand(Decode *s, uint8_t opcode, int *rd_, word_t *src1,
 static inline void update_eflags(int gp_idx, word_t dest, word_t src, word_t res, int width)
 {
   int shift = width * 8 - 1;
+  if (width == 1) res &= 0xff;
+  else if (width == 2) res &= 0xffff;
+  
   cpu.eflags.ZF = (res == 0);
   cpu.eflags.SF = (res >> shift) & 1;
   // CF & OF: 只有加减法需要
   if (gp_idx == 0) { // ADD
     cpu.eflags.CF = (res < dest); // 无符号溢出
     // 有符号溢出: 两个加数符号相同，但与结果符号不同
-    cpu.eflags.OF = ((dest >> shift) == (src >> shift)) && ((dest >> shift) != (res >> shift));
+    cpu.eflags.OF = (((dest >> shift) & 1) == ((src >> shift) & 1)) && (((dest >> shift) & 1) != ((res >> shift) & 1));
   }
   else if (gp_idx == 5 || gp_idx == 7) { // SUB (cmp 也用这个)
     cpu.eflags.CF = (dest < src); // 无符号借位
     // 有符号溢出: 减数与被减数符号不同，且结果符号与被减数不同
     // (例如: 正 - 负 = 负)
-    cpu.eflags.OF = ((dest >> shift) != (src >> shift)) && ((dest >> shift) != (res >> shift));
+    cpu.eflags.OF = (((dest >> shift) & 1) != ((src >> shift) & 1)) && (((dest >> shift) & 1) != ((res >> shift) & 1));
   }else if (gp_idx == 4)
   {
     cpu.eflags.OF = 0;
@@ -247,6 +250,30 @@ cpu.esp += w;\
 *   0x83: Op r/m32, imm8 (符号扩展)
 这里的 Op 到底是哪个运算，不是由 Opcode 决定的，而是由 ModR/M 字节中间的 3 位（也就是我们代码里的 gp_idx）决定的：
  */
+
+#define gp4() do{ \
+  switch (gp_idx){ \
+    case 0: { \
+      word_t dest = ddest; \
+      word_t res = dest + 1; \
+      RMw(res); \
+      bool old_cf = cpu.eflags.CF; \
+      update_eflags(0, dest, 1, res, w); \
+      cpu.eflags.CF = old_cf; \
+      break; \
+    } \
+    case 1: { \
+      word_t dest = ddest; \
+      word_t res = dest - 1; \
+      RMw(res); \
+      bool old_cf = cpu.eflags.CF; \
+      update_eflags(5, dest, 1, res, w); \
+      cpu.eflags.CF = old_cf; \
+      break; \
+    } \
+    default: INV(s->pc); \
+  };\
+}while(0)
 
 #define gp5() do{ \
   switch (gp_idx){ \
@@ -343,7 +370,9 @@ cpu.esp += w;\
         cpu.ax = res; \
         cpu.eflags.CF = cpu.eflags.OF = (cpu.ah != 0); \
       } else { \
-        uint64_t res = (uint64_t)Rr(R_EAX, w) * (uint64_t)ddest; \
+        word_t src = ddest; \
+        if (w == 2) src &= 0xffff; \
+        uint64_t res = (uint64_t)Rr(R_EAX, w) * (uint64_t)src; \
         if (w == 2) { \
           cpu.ax = res & 0xffff; \
           cpu.dx = res >> 16; \
@@ -361,7 +390,9 @@ cpu.esp += w;\
         cpu.ax = res; \
         cpu.eflags.CF = cpu.eflags.OF = (res != (int8_t)res); \
       } else { \
-        int64_t res = (int64_t)(sword_t)Rr(R_EAX, w) * (int64_t)(sword_t)ddest; \
+        int64_t src = (w == 2 ? (int16_t)ddest : (int32_t)ddest); \
+        int64_t val = (w == 2 ? (int16_t)Rr(R_EAX, w) : (int32_t)Rr(R_EAX, w)); \
+        int64_t res = val * src; \
         if (w == 2) { \
           cpu.ax = res & 0xffff; \
           cpu.dx = res >> 16; \
@@ -383,6 +414,7 @@ cpu.esp += w;\
       } else { \
         uint64_t val = (w == 2 ? ((uint32_t)cpu.dx << 16) | cpu.ax : ((uint64_t)cpu.edx << 32) | cpu.eax); \
         word_t src = ddest; \
+        if (w == 2) src &= 0xffff; \
         if (src == 0) panic("Divide by zero"); \
         uint64_t quot = val / src; \
         uint64_t rem = val % src; \
@@ -398,8 +430,8 @@ cpu.esp += w;\
         cpu.al = val / src; \
         cpu.ah = val % src; \
       } else { \
-        int64_t val = (w == 2 ? ((int32_t)(int16_t)cpu.dx << 16) | cpu.ax : ((int64_t)(int32_t)cpu.edx << 32) | cpu.eax); \
-        sword_t src = (sword_t)ddest; \
+        int64_t val = (w == 2 ? ((int32_t)(int16_t)cpu.dx << 16) | (uint16_t)cpu.ax : ((int64_t)(int32_t)cpu.edx << 32) | cpu.eax); \
+        int64_t src = (w == 2 ? (int16_t)ddest : (int32_t)ddest); \
         if (src == 0) panic("Divide by zero"); \
         int64_t quot = val / src; \
         int64_t rem = val % src; \
@@ -407,8 +439,8 @@ cpu.esp += w;\
         else { cpu.eax = quot; cpu.edx = rem; } \
       } \
       break; \
-    default: panic("gp3: %d", gp_idx); \
-  } \
+    default: INV(s->pc); \
+  }; \
 } while (0)
 
 #define or(dest, src) do { \
@@ -624,6 +656,7 @@ again:
   INSTPAT("1000 1111", pop,       E,    0, { word_t val; pop(val); RMw(val); });
   INSTPAT("1100 0011", ret,       N,    0, pop(s->dnpc); IFDEF(CONFIG_FTRACE, ftrace_write(s->pc, s->dnpc, false)););
   INSTPAT("1000 1101", lea,       E2G,  0, Rw(rd,w,addr));
+  INSTPAT("1111 1110", gp4,       E,    1, gp4());
   INSTPAT("1111 1111", gp5,       E,    0, gp5());
   INSTPAT("0000 0000", add,       G2E,  1, { word_t dest = ddest; word_t src = dsrc1; word_t res = dest + src; RMw(res); update_eflags(0, dest, src, res, w); });
   INSTPAT("0000 0001", add,       G2E,  0, { word_t dest = ddest; word_t src = dsrc1; word_t res = dest + src; RMw(res); update_eflags(0, dest, src, res, w); });
