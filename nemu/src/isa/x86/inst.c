@@ -188,11 +188,29 @@ static void decode_operand(Decode *s, uint8_t opcode, int *rd_, word_t *src1,
 static inline void update_eflags(int gp_idx, word_t dest, word_t src, word_t res, int width)
 {
   int shift = width * 8 - 1;
-  if (width == 1) res &= 0xff;
-  else if (width == 2) res &= 0xffff;
+  if (width == 1) {
+    res &= 0xff;
+    dest &= 0xff;
+    src &= 0xff;
+  }
+  else if (width == 2) {
+    res &= 0xffff;
+    dest &= 0xffff;
+    src &= 0xffff;
+  }
   
   cpu.eflags.ZF = (res == 0);
   cpu.eflags.SF = (res >> shift) & 1;
+
+  // Parity Flag (PF): Set if the least-significant byte of the result contains an even number of 1 bits.
+  uint8_t low_byte = res & 0xff;
+  // Brian Kernighan's algorithm to count set bits
+  int count = 0;
+  for (int i = 0; i < 8; i++) {
+      if ((low_byte >> i) & 1) count++;
+  }
+  cpu.eflags.PF = (count % 2 == 0);
+
   // CF & OF: 只有加减法需要
   if (gp_idx == 0) { // ADD
     cpu.eflags.CF = (res < dest); // 无符号溢出
@@ -256,6 +274,8 @@ cpu.esp += w;\
     case 0: { \
       word_t dest = ddest; \
       word_t res = dest + 1; \
+      if (w == 1) res &= 0xff; \
+      else if (w == 2) res &= 0xffff; \
       RMw(res); \
       bool old_cf = cpu.eflags.CF; \
       update_eflags(0, dest, 1, res, w); \
@@ -265,6 +285,8 @@ cpu.esp += w;\
     case 1: { \
       word_t dest = ddest; \
       word_t res = dest - 1; \
+      if (w == 1) res &= 0xff; \
+      else if (w == 2) res &= 0xffff; \
       RMw(res); \
       bool old_cf = cpu.eflags.CF; \
       update_eflags(5, dest, 1, res, w); \
@@ -280,6 +302,8 @@ cpu.esp += w;\
     case 0: { \
       word_t dest = ddest; \
       word_t res = dest + 1; \
+      if (w == 1) res &= 0xff; \
+      else if (w == 2) res &= 0xffff; \
       RMw(res); \
       bool old_cf = cpu.eflags.CF; \
       update_eflags(0, dest, 1, res, w); \
@@ -289,6 +313,8 @@ cpu.esp += w;\
     case 1: { \
       word_t dest = ddest; \
       word_t res = dest - 1; \
+      if (w == 1) res &= 0xff; \
+      else if (w == 2) res &= 0xffff; \
       RMw(res); \
       bool old_cf = cpu.eflags.CF; \
       update_eflags(5, dest, 1, res, w); \
@@ -331,6 +357,9 @@ cpu.esp += w;\
       cpu.eflags.ZF = (res == 0); \
       cpu.eflags.SF = (res >> (w*8-1)) & 1; \
       if (count > 0) cpu.eflags.CF = (dest >> (w*8 - count)) & 1; \
+      if (count == 1) { \
+        cpu.eflags.OF = ( (dest >> (w*8-1)) ^ (res >> (w*8-1)) ) & 1; \
+      } \
       break; \
     case 5: \
       res = dest >> count; \
@@ -338,6 +367,9 @@ cpu.esp += w;\
       cpu.eflags.ZF = (res == 0); \
       cpu.eflags.SF = (res >> (w*8-1)) & 1; \
       if (count > 0) cpu.eflags.CF = (dest >> (count - 1)) & 1; \
+      if (count == 1) { \
+        cpu.eflags.OF = (dest >> (w*8-1)) & 1; \
+      } \
       break; \
     case 7: \
       if (w == 1) res = (int8_t)dest >> count; \
@@ -347,6 +379,9 @@ cpu.esp += w;\
       cpu.eflags.ZF = (res == 0); \
       cpu.eflags.SF = (res >> (w*8-1)) & 1; \
       if (count > 0) cpu.eflags.CF = (dest >> (count - 1)) & 1; \
+      if (count == 1) { \
+        cpu.eflags.OF = 0; \
+      } \
       break; \
     default: panic("gp2: %d", gp_idx); \
   } \
@@ -366,77 +401,77 @@ cpu.esp += w;\
     } \
     case 4: /* mul */ \
       if (w == 1) { \
-        uint16_t res = (uint16_t)cpu.al * (uint16_t)ddest; \
-        cpu.ax = res; \
-        cpu.eflags.CF = cpu.eflags.OF = (cpu.ah != 0); \
+        uint16_t res = (uint16_t)reg_b(R_AL) * (uint16_t)ddest; \
+        reg_w(R_AX) = res; \
+        cpu.eflags.CF = cpu.eflags.OF = (reg_b(R_AH) != 0); \
       } else { \
         word_t src = ddest; \
         if (w == 2) src &= 0xffff; \
-        uint64_t res = (uint64_t)Rr(R_EAX, w) * (uint64_t)src; \
+        uint64_t res = (uint64_t)reg_l(R_EAX) * (uint64_t)src; \
         if (w == 2) { \
-          cpu.ax = res & 0xffff; \
-          cpu.dx = res >> 16; \
-          cpu.eflags.CF = cpu.eflags.OF = (cpu.dx != 0); \
+          reg_w(R_AX) = res & 0xffff; \
+          reg_w(R_DX) = res >> 16; \
+          cpu.eflags.CF = cpu.eflags.OF = (reg_w(R_DX) != 0); \
         } else { \
-          cpu.eax = res & 0xffffffff; \
-          cpu.edx = res >> 32; \
-          cpu.eflags.CF = cpu.eflags.OF = (cpu.edx != 0); \
+          reg_l(R_EAX) = res & 0xffffffff; \
+          reg_l(R_EDX) = res >> 32; \
+          cpu.eflags.CF = cpu.eflags.OF = (reg_l(R_EDX) != 0); \
         } \
       } \
       break; \
     case 5: /* imul */ \
       if (w == 1) { \
-        int16_t res = (int16_t)(int8_t)cpu.al * (int16_t)(int8_t)ddest; \
-        cpu.ax = res; \
+        int16_t res = (int16_t)(int8_t)reg_b(R_AL) * (int16_t)(int8_t)ddest; \
+        reg_w(R_AX) = res; \
         cpu.eflags.CF = cpu.eflags.OF = (res != (int8_t)res); \
       } else { \
         int64_t src = (w == 2 ? (int16_t)ddest : (int32_t)ddest); \
-        int64_t val = (w == 2 ? (int16_t)Rr(R_EAX, w) : (int32_t)Rr(R_EAX, w)); \
+        int64_t val = (w == 2 ? (int16_t)reg_l(R_EAX) : (int32_t)reg_l(R_EAX)); \
         int64_t res = val * src; \
         if (w == 2) { \
-          cpu.ax = res & 0xffff; \
-          cpu.dx = res >> 16; \
+          reg_w(R_AX) = res & 0xffff; \
+          reg_w(R_DX) = res >> 16; \
           cpu.eflags.CF = cpu.eflags.OF = (res != (int16_t)res); \
         } else { \
-          cpu.eax = res & 0xffffffff; \
-          cpu.edx = res >> 32; \
+          reg_l(R_EAX) = res & 0xffffffff; \
+          reg_l(R_EDX) = res >> 32; \
           cpu.eflags.CF = cpu.eflags.OF = (res != (int32_t)res); \
         } \
       } \
       break; \
     case 6: /* div */ \
       if (w == 1) { \
-        uint16_t val = cpu.ax; \
+        uint16_t val = reg_w(R_AX); \
         uint8_t src = ddest; \
         if (src == 0) panic("Divide by zero"); \
-        cpu.al = val / src; \
-        cpu.ah = val % src; \
+        reg_b(R_AL) = val / src; \
+        reg_b(R_AH) = val % src; \
       } else { \
-        uint64_t val = (w == 2 ? ((uint32_t)cpu.dx << 16) | cpu.ax : ((uint64_t)cpu.edx << 32) | cpu.eax); \
+        uint64_t val = (w == 2 ? ((uint32_t)reg_w(R_DX) << 16) | reg_w(R_AX) : ((uint64_t)reg_l(R_EDX) << 32) | reg_l(R_EAX)); \
         word_t src = ddest; \
         if (w == 2) src &= 0xffff; \
         if (src == 0) panic("Divide by zero"); \
         uint64_t quot = val / src; \
         uint64_t rem = val % src; \
-        if (w == 2) { cpu.ax = quot; cpu.dx = rem; } \
-        else { cpu.eax = quot; cpu.edx = rem; } \
+        if (w == 2) { reg_w(R_AX) = quot; reg_w(R_DX) = rem; } \
+        else { reg_l(R_EAX) = quot; reg_l(R_EDX) = rem; } \
       } \
       break; \
     case 7: /* idiv */ \
       if (w == 1) { \
-        int16_t val = (int16_t)cpu.ax; \
+        int16_t val = (int16_t)reg_w(R_AX); \
         int8_t src = (int8_t)ddest; \
         if (src == 0) panic("Divide by zero"); \
-        cpu.al = val / src; \
-        cpu.ah = val % src; \
+        reg_b(R_AL) = val / src; \
+        reg_b(R_AH) = val % src; \
       } else { \
-        int64_t val = (w == 2 ? ((int32_t)(int16_t)cpu.dx << 16) | (uint16_t)cpu.ax : ((int64_t)(int32_t)cpu.edx << 32) | cpu.eax); \
+        int64_t val = (w == 2 ? ((int32_t)(int16_t)reg_w(R_DX) << 16) | (uint16_t)reg_w(R_AX) : ((int64_t)(int32_t)reg_l(R_EDX) << 32) | reg_l(R_EAX)); \
         int64_t src = (w == 2 ? (int16_t)ddest : (int32_t)ddest); \
         if (src == 0) panic("Divide by zero"); \
         int64_t quot = val / src; \
         int64_t rem = val % src; \
-        if (w == 2) { cpu.ax = quot; cpu.dx = rem; } \
-        else { cpu.eax = quot; cpu.edx = rem; } \
+        if (w == 2) { reg_w(R_AX) = quot; reg_w(R_DX) = rem; } \
+        else { reg_l(R_EAX) = quot; reg_l(R_EDX) = rem; } \
       } \
       break; \
     default: INV(s->pc); \
@@ -473,7 +508,10 @@ cpu.esp += w;\
   word_t src_with_carry = src + carry; \
   word_t sign_mask = (word_t)1 << (w * 8 - 1); \
   cpu.eflags.OF = (~(dest ^ src_with_carry) & (dest ^ res) & sign_mask) != 0; \
-  cpu.eflags.ZF = (res == 0); \
+  word_t res_masked = res; \
+  if (w == 1) res_masked &= 0xff; \
+  else if (w == 2) res_masked &= 0xffff; \
+  cpu.eflags.ZF = (res_masked == 0); \
   cpu.eflags.SF = (res >> (w * 8 - 1)) & 1; \
 } while (0)
 
@@ -486,7 +524,10 @@ cpu.esp += w;\
   word_t src_with_borrow = src + borrow; \
   word_t sign_mask = (word_t)1 << (w * 8 - 1); \
   cpu.eflags.OF = ((dest ^ src_with_borrow) & (dest ^ res) & sign_mask) != 0; \
-  cpu.eflags.ZF = (res == 0); \
+  word_t res_masked = res; \
+  if (w == 1) res_masked &= 0xff; \
+  else if (w == 2) res_masked &= 0xffff; \
+  cpu.eflags.ZF = (res_masked == 0); \
   cpu.eflags.SF = (res >> (w * 8 - 1)) & 1; \
 } while (0)
 
@@ -518,8 +559,8 @@ void _2byte_esc(Decode *s, bool is_operand_size_16) {
       case 7: set = !cpu.eflags.CF && !cpu.eflags.ZF; break;
       case 8: set = cpu.eflags.SF; break;
       case 9: set = !cpu.eflags.SF; break;
-      case 10: set = false; break;
-      case 11: set = false; break;
+      case 10: set = cpu.eflags.PF; break;
+      case 11: set = !cpu.eflags.PF; break;
       case 12: set = cpu.eflags.SF != cpu.eflags.OF; break;
       case 13: set = cpu.eflags.SF == cpu.eflags.OF; break;
       case 14: set = cpu.eflags.ZF || (cpu.eflags.SF != cpu.eflags.OF); break;
@@ -546,10 +587,19 @@ void _2byte_esc(Decode *s, bool is_operand_size_16) {
   });
   INSTPAT("1010 1111", imul2, E2G, 0, {
     word_t src = dsrc1;
-    sword_t res = (sword_t)ddest * (sword_t)src;
+    word_t dest = ddest;
+    int64_t src_s, dest_s;
+    if (w == 1) { src_s = (int8_t)src; dest_s = (int8_t)dest; }
+    else if (w == 2) { src_s = (int16_t)src; dest_s = (int16_t)dest; }
+    else { src_s = (int32_t)src; dest_s = (int32_t)dest; }
+
+    int64_t full = src_s * dest_s;
+    word_t res = (word_t)full;
     Rw(rd, w, res);
-    int64_t full = (int64_t)(sword_t)ddest * (int64_t)(sword_t)src;
-    cpu.eflags.CF = cpu.eflags.OF = (res != full);
+    
+    if (w == 1) cpu.eflags.CF = cpu.eflags.OF = (full != (int64_t)(int8_t)res);
+    else if (w == 2) cpu.eflags.CF = cpu.eflags.OF = (full != (int64_t)(int16_t)res);
+    else cpu.eflags.CF = cpu.eflags.OF = (full != (int64_t)(int32_t)res);
   });
   INSTPAT("1000 ????", jcc, J, 0, {
 
@@ -566,8 +616,8 @@ void _2byte_esc(Decode *s, bool is_operand_size_16) {
       case 7: jump = !cpu.eflags.CF && !cpu.eflags.ZF; break; // ja
       case 8: jump = cpu.eflags.SF; break; // js
       case 9: jump = !cpu.eflags.SF; break; // jns
-      case 10: panic("JP not implemented"); break; // jp
-      case 11: panic("JNP not implemented"); break; // jnp
+      case 10: jump = cpu.eflags.PF; break; // jp
+      case 11: jump = !cpu.eflags.PF; break; // jnp
       case 12: jump = cpu.eflags.SF != cpu.eflags.OF; break; // jl
       case 13: jump = cpu.eflags.SF == cpu.eflags.OF; break; // jge
       case 14: jump = cpu.eflags.ZF || (cpu.eflags.SF != cpu.eflags.OF); break; // jle
