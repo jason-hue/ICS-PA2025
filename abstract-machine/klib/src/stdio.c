@@ -65,6 +65,20 @@ static int format_output(char *out, size_t n, const char *fmt, va_list ap) {
       break;
     }
 
+    // Parse flags
+    bool fill_zero = false;
+    if (*p == '0') {
+      fill_zero = true;
+      p++;
+    }
+
+    // Parse width
+    int width = 0;
+    while (*p >= '0' && *p <= '9') {
+      width = width * 10 + (*p - '0');
+      p++;
+    }
+
     switch (*p) {
       case 's':
         out_str(out, n, &pos, va_arg(ap, const char *));
@@ -72,9 +86,32 @@ static int format_output(char *out, size_t n, const char *fmt, va_list ap) {
       case 'c':
         out_char(out, n, &pos, (char)va_arg(ap, int));
         break;
-      case 'd':
-        out_int(out, n, &pos, (int32_t)va_arg(ap, int));
+      case 'd': {
+        int32_t val = va_arg(ap, int32_t);
+        if (val < 0) {
+          out_char(out, n, &pos, '-');
+          val = -val;
+        }
+        // Simplified padding for %02d
+        if (width > 0) {
+          char buf[32];
+          int len = 0;
+          do {
+            buf[len++] = (val % 10) + '0';
+            val /= 10;
+          } while (val > 0);
+          while (len < width) {
+            out_char(out, n, &pos, fill_zero ? '0' : ' ');
+            width--;
+          }
+          while (len > 0) {
+            out_char(out, n, &pos, buf[--len]);
+          }
+        } else {
+          out_int(out, n, &pos, val);
+        }
         break;
+      }
       case 'u':
         out_uint(out, n, &pos, (uint32_t)va_arg(ap, unsigned int), 10, false);
         break;

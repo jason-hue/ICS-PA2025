@@ -447,14 +447,14 @@ cpu.esp += w;\
         reg_b(R_AL) = val / src; \
         reg_b(R_AH) = val % src; \
       } else { \
-        uint64_t val = (w == 2 ? ((uint32_t)reg_w(R_DX) << 16) | reg_w(R_AX) : ((uint64_t)reg_l(R_EDX) << 32) | reg_l(R_EAX)); \
+        uint64_t val = (w == 2 ? (((uint32_t)reg_w(R_DX) << 16) | (uint32_t)reg_w(R_AX)) : (((uint64_t)reg_l(R_EDX) << 32) | (uint64_t)reg_l(R_EAX))); \
         word_t src = ddest; \
         if (w == 2) src &= 0xffff; \
         if (src == 0) panic("Divide by zero"); \
         uint64_t quot = val / src; \
         uint64_t rem = val % src; \
-        if (w == 2) { reg_w(R_AX) = quot; reg_w(R_DX) = rem; } \
-        else { reg_l(R_EAX) = quot; reg_l(R_EDX) = rem; } \
+        if (w == 2) { reg_w(R_AX) = (uint16_t)quot; reg_w(R_DX) = (uint16_t)rem; } \
+        else { reg_l(R_EAX) = (uint32_t)quot; reg_l(R_EDX) = (uint32_t)rem; } \
       } \
       break; \
     case 7: /* idiv */ \
@@ -500,14 +500,15 @@ cpu.esp += w;\
 } while (0)
 
 #define adc(dest, src) do { \
+  word_t d = (dest); \
   word_t carry = cpu.eflags.CF; \
-  uint64_t full = (uint64_t)dest + (uint64_t)src + carry; \
+  uint64_t full = (uint64_t)d + (uint64_t)src + carry; \
   word_t res = (word_t)full; \
   RMw(res); \
   cpu.eflags.CF = (full >> (w * 8)) & 1; \
   word_t src_with_carry = src + carry; \
   word_t sign_mask = (word_t)1 << (w * 8 - 1); \
-  cpu.eflags.OF = (~(dest ^ src_with_carry) & (dest ^ res) & sign_mask) != 0; \
+  cpu.eflags.OF = (~(d ^ src_with_carry) & (d ^ res) & sign_mask) != 0; \
   word_t res_masked = res; \
   if (w == 1) res_masked &= 0xff; \
   else if (w == 2) res_masked &= 0xffff; \
@@ -516,14 +517,15 @@ cpu.esp += w;\
 } while (0)
 
 #define sbb(dest, src) do { \
+  word_t d = (dest); \
   word_t borrow = cpu.eflags.CF; \
   uint64_t sub = (uint64_t)src + borrow; \
-  word_t res = dest - sub; \
+  word_t res = d - sub; \
   RMw(res); \
-  cpu.eflags.CF = dest < sub; \
+  cpu.eflags.CF = d < sub; \
   word_t src_with_borrow = src + borrow; \
   word_t sign_mask = (word_t)1 << (w * 8 - 1); \
-  cpu.eflags.OF = ((dest ^ src_with_borrow) & (dest ^ res) & sign_mask) != 0; \
+  cpu.eflags.OF = ((d ^ src_with_borrow) & (d ^ res) & sign_mask) != 0; \
   word_t res_masked = res; \
   if (w == 1) res_masked &= 0xff; \
   else if (w == 2) res_masked &= 0xffff; \
