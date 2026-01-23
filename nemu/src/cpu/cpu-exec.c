@@ -91,6 +91,10 @@ static void execute(uint64_t n) {
 
     if (nemu_state.state != NEMU_RUNNING) break;//将state改成stop就能实现暂停执行，本质上是打破了 CPU 的取指-执行循环。
     IFDEF(CONFIG_DEVICE, device_update());
+    word_t intr = isa_query_intr();
+    if (intr != INTR_EMPTY) {
+      cpu.pc = isa_raise_intr(intr, cpu.pc);
+    }
   }
 }
 

@@ -17,7 +17,13 @@ void __am_vecnull();
 Context* __am_irq_handle(Context *c) {
   if (user_handler) {
     Event ev = {0};
-    switch (c->irq) {
+    switch ((uint8_t)c->irq) {
+      case 0x81:
+        ev.event = EVENT_YIELD;
+        break;
+      case 32:
+        ev.event = EVENT_IRQ_TIMER;
+        break;
       default: ev.event = EVENT_ERROR; break;
     }
 
@@ -60,8 +66,10 @@ void yield() {
 }
 
 bool ienabled() {
-  return false;
+  return (get_efl() & FL_IF) != 0;
 }
 
 void iset(bool enable) {
+  if (enable) sti();
+  else cli();
 }

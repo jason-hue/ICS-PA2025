@@ -169,7 +169,6 @@ static bool make_token(char *e) {
 
 
 static void test_tokens() {
-  printf("Testing tokens...\n");
   int nr_test = 50;
   for (int i = 0; i < nr_test; i++) {
     char buf[256] = "";
@@ -229,7 +228,9 @@ static void test_tokens() {
       }
     }
   }
-  printf("Token testing passed!\n");
+#ifdef DEBUG
+  Log("Token testing passed!\n");
+#endif
 }
 
 bool check_parentheses(int p, int q)

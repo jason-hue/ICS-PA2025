@@ -627,6 +627,15 @@ void _2byte_esc(Decode *s, bool is_operand_size_16) {
     }
     if (jump) s->dnpc += imm;
   });
+  INSTPAT("0000 0001", system_ins, E, 0, {
+    switch (gp_idx)
+    {
+    case 3:
+      cpu.idtr.limit = Mr(addr, 2);
+      cpu.idtr.base = Mr(addr + 2, 4);
+      break;
+    }
+  });
 
   INSTPAT("???? ????", inv,    N,    0, INV(s->pc));
 
@@ -678,6 +687,21 @@ again:
   INSTPAT("0110 1010", push,      N,    0, { word_t val = (int8_t)x86_inst_fetch(s, 1); push(val); s->dnpc = s->snpc; });
   INSTPAT("1100 0110", mov,       I2E,  1, RMw(imm));
   INSTPAT("1100 0111", mov,       I2E,  0, RMw(imm));
+  INSTPAT("0110 0001", popa, N, 0, {
+    pop(cpu.edi);
+    pop(cpu.esi);
+    pop(cpu.ebp);
+    word_t dummy; pop(dummy); (void)dummy;
+    pop(cpu.ebx);
+    pop(cpu.edx);
+    pop(cpu.ecx);
+    pop(cpu.eax);
+  });
+  INSTPAT("1100 1111", iret, N, 0, {
+    pop(s->dnpc);
+    pop(cpu.cs);
+    pop(cpu.eflags.val);
+  });
   INSTPAT("1100 1100", nemu_trap, N,    0, NEMUTRAP(s->pc, cpu.eax));
   INSTPAT("1110 1000", call,      J,    0, push(s->snpc);s->dnpc = s->snpc + imm; IFDEF(CONFIG_FTRACE, ftrace_write(s->pc, s->dnpc, true)););
   INSTPAT("1110 1001", jmp,       J,    0, s->dnpc += imm);
@@ -820,7 +844,23 @@ again:
   Rw(R_EAX, w, res);
   update_eflags(5, dest, src, res, w);
 });
+  INSTPAT("1100 1101", int,        I,   1, {
+    s->dnpc = isa_raise_intr(imm, s->snpc);
+  });
+  INSTPAT("0110 0000", pusha, N, 0, {
+    word_t temp_esp = cpu.esp;
+    push(cpu.eax);
+    push(cpu.ecx);
+    push(cpu.edx);
+    push(cpu.ebx);
+    push(temp_esp); // 压入的是执行 pusha 之前的 esp
+    push(cpu.ebp);
+    push(cpu.esi);
+    push(cpu.edi);
+  });
 
+  INSTPAT("1111 1010", cli, N, 0, cpu.eflags.IF = 0);
+  INSTPAT("1111 1011", sti, N, 0, cpu.eflags.IF = 1);
   INSTPAT("???? ????", inv,       N,    0, INV(s->pc));//通配符
   INSTPAT_END();
 

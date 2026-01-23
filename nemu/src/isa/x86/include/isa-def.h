@@ -50,7 +50,9 @@ typedef struct {
       union { uint32_t edi; uint16_t di; };
     };
   };
+
   vaddr_t pc;
+
   union
   {
     uint32_t val;
@@ -69,6 +71,14 @@ typedef struct {
       uint32_t    : 20;
     };
   }eflags;
+
+  struct {
+    uint32_t base;
+    uint16_t limit;
+  } idtr;
+
+  uint16_t cs;
+
 } x86_CPU_state;
 
 // decode
