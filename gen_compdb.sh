@@ -8,6 +8,8 @@ START_DIR=$(pwd)
 NEMU_DIR="nemu"
 AM_DIR="abstract-machine"
 TESTS_DIR="am-kernels/tests/cpu-tests"
+AM_TESTS_DIR="am-kernels/tests/am-tests"
+ALU_TESTS_DIR="am-kernels/tests/alu-tests"
 
 # ---------------------------------------------------------
 # 0. 环境检查与配置解析
@@ -103,6 +105,34 @@ else
 fi
 
 # ---------------------------------------------------------
+# 4.1. 生成 AM Tests 的编译数据库
+# ---------------------------------------------------------
+echo ">>> 4.1. Generating compile_commands.json for AM Tests..."
+cd "$START_DIR/$AM_TESTS_DIR"
+make clean
+bear -- make ARCH=$TARGET_ARCH
+if [ -f "compile_commands.json" ]; then
+    mv compile_commands.json compile_commands_am_tests.json
+    JSON_LIST+=("$START_DIR/$AM_TESTS_DIR/compile_commands_am_tests.json")
+else
+    echo "Warning: Failed to generate compile_commands.json in am-tests"
+fi
+
+# ---------------------------------------------------------
+# 4.2. 生成 ALU Tests 的编译数据库
+# ---------------------------------------------------------
+echo ">>> 4.2. Generating compile_commands.json for ALU Tests..."
+cd "$START_DIR/$ALU_TESTS_DIR"
+make clean
+bear -- make ARCH=$TARGET_ARCH
+if [ -f "compile_commands.json" ]; then
+    mv compile_commands.json compile_commands_alu_tests.json
+    JSON_LIST+=("$START_DIR/$ALU_TESTS_DIR/compile_commands_alu_tests.json")
+else
+    echo "Warning: Failed to generate compile_commands.json in alu-tests"
+fi
+
+# ---------------------------------------------------------
 # 5. 合并数据库
 # ---------------------------------------------------------
 echo ">>> Merging JSON files..."
@@ -146,4 +176,6 @@ echo ">>> cleaning temporary files..."
 rm -f "$START_DIR/$NEMU_DIR/compile_commands_nemu.json"
 rm -f "$START_DIR/$AM_DIR/compile_commands_am_klib.json"
 rm -f "$START_DIR/$AM_DIR/compile_commands_am_core.json"
+rm -f "$START_DIR/$AM_TESTS_DIR/compile_commands_am_tests.json"
+rm -f "$START_DIR/$ALU_TESTS_DIR/compile_commands_alu_tests.json"
 # 注意：不删除 $TESTS_DIR/compile_commands.json，因为那是最终输出结果

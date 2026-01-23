@@ -29,7 +29,7 @@ Context* __am_irq_handle(Context *c) {
 }
 
 bool cte_init(Context*(*handler)(Event, Context*)) {
-  static GateDesc32 idt[NR_IRQ];
+  static GateDesc32 idt[NR_IRQ];//static 确保这个表在函数结束后依然存在于内存中，因为 CPU 的 IDTR 寄存器将始终指向这个地址。
 
   // initialize IDT
   for (unsigned int i = 0; i < NR_IRQ; i ++) {

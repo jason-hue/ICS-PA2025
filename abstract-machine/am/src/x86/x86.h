@@ -284,7 +284,7 @@ static inline void set_idt(void *idt, int size) {
   static volatile struct {
     int16_t size;
     void *idt;
-  } __attribute__((packed)) data;
+  } __attribute__((packed)) data;//__attribute__((packed))：拒绝对齐
   data.size = size;
   data.idt = idt;
   asm volatile ("lidt (%0)" : : "r"(&data));
