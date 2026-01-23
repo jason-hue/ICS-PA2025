@@ -14,6 +14,7 @@
 ***************************************************************************************/
 
 #include <common.h>
+#include <isa.h>
 
 extern uint64_t g_nr_guest_inst;
 
@@ -33,5 +34,16 @@ void init_log(const char *log_file) {
 bool log_enable() {
   return MUXDEF(CONFIG_TRACE, (g_nr_guest_inst >= CONFIG_TRACE_START) &&
          (g_nr_guest_inst <= CONFIG_TRACE_END), false);
+}
+
+void etrace_write(word_t NO, vaddr_t epc, vaddr_t target) {
+  if (log_fp != NULL) {
+    if (NO == INTR_EMPTY) {
+      fprintf(log_fp, "[etrace] iret at pc = " FMT_WORD "\n", epc);
+    } else {
+      fprintf(log_fp, "[etrace] raise intr #%d at pc = " FMT_WORD ", jump to " FMT_WORD "\n", (int)NO, epc, target);
+    }
+    fflush(log_fp);
+  }
 }
 #endif

@@ -42,6 +42,8 @@ word_t isa_raise_intr(word_t NO, vaddr_t ret_addr) {
   cpu.cs = gate.cs;
   if (gate.type == STS_IG) cpu.eflags.IF = 0;
 
+  etrace_write(NO, ret_addr, target_addr);
+
 #ifdef DEBUG
   Log("Interrupt #%d: jumping to 0x%08x", NO, target_addr);
 #endif

@@ -701,6 +701,7 @@ again:
     pop(s->dnpc);
     pop(cpu.cs);
     pop(cpu.eflags.val);
+    etrace_write(INTR_EMPTY, s->pc, s->dnpc);
   });
   INSTPAT("1100 1100", nemu_trap, N,    0, NEMUTRAP(s->pc, cpu.eax));
   INSTPAT("1110 1000", call,      J,    0, push(s->snpc);s->dnpc = s->snpc + imm; IFDEF(CONFIG_FTRACE, ftrace_write(s->pc, s->dnpc, true)););

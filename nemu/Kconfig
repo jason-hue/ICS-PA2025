@@ -169,6 +169,10 @@ config FTRACE
   bool "Enable function tracer"
   default y
 
+config ETRACE
+  bool "Enable exception tracer"
+  default y
+
 config DIFFTEST
   depends on TARGET_NATIVE_ELF
   bool "Enable differential testing"

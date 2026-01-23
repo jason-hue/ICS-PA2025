@@ -79,4 +79,6 @@ void iringbuf_display();
 void init_ftrace(const char *elf_file);
 void ftrace_write(paddr_t pc, paddr_t target, bool is_call);
 
+void etrace_write(word_t NO, vaddr_t epc, vaddr_t target);
+
 #endif
