@@ -27,7 +27,7 @@ Context* __am_irq_handle(Context *c) {
       default: ev.event = EVENT_ERROR; break;
     }
 
-    c = user_handler(ev, c);
+    c = user_handler(ev, c);//在此处调用用户注册的中断处理函数
     assert(c != NULL);
   }
 
