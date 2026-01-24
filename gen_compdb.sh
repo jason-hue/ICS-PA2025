@@ -10,6 +10,7 @@ AM_DIR="abstract-machine"
 TESTS_DIR="am-kernels/tests/cpu-tests"
 AM_TESTS_DIR="am-kernels/tests/am-tests"
 ALU_TESTS_DIR="am-kernels/tests/alu-tests"
+NANOS_LITE_DIR="nanos-lite"
 
 # ---------------------------------------------------------
 # 0. 环境检查与配置解析
@@ -133,6 +134,20 @@ else
 fi
 
 # ---------------------------------------------------------
+# 4.3. 生成 Nanos-lite 的编译数据库
+# ---------------------------------------------------------
+echo ">>> 4.3. Generating compile_commands.json for Nanos-lite..."
+cd "$START_DIR/$NANOS_LITE_DIR"
+make clean
+bear -- make ARCH=$TARGET_ARCH
+if [ -f "compile_commands.json" ]; then
+    mv compile_commands.json compile_commands_nanos_lite.json
+    JSON_LIST+=("$START_DIR/$NANOS_LITE_DIR/compile_commands_nanos_lite.json")
+else
+    echo "Warning: Failed to generate compile_commands.json in nanos-lite"
+fi
+
+# ---------------------------------------------------------
 # 5. 合并数据库
 # ---------------------------------------------------------
 echo ">>> Merging JSON files..."
@@ -178,4 +193,5 @@ rm -f "$START_DIR/$AM_DIR/compile_commands_am_klib.json"
 rm -f "$START_DIR/$AM_DIR/compile_commands_am_core.json"
 rm -f "$START_DIR/$AM_TESTS_DIR/compile_commands_am_tests.json"
 rm -f "$START_DIR/$ALU_TESTS_DIR/compile_commands_alu_tests.json"
+rm -f "$START_DIR/$NANOS_LITE_DIR/compile_commands_nanos_lite.json"
 # 注意：不删除 $TESTS_DIR/compile_commands.json，因为那是最终输出结果
