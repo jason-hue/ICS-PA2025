@@ -11,6 +11,7 @@ TESTS_DIR="am-kernels/tests/cpu-tests"
 AM_TESTS_DIR="am-kernels/tests/am-tests"
 ALU_TESTS_DIR="am-kernels/tests/alu-tests"
 NANOS_LITE_DIR="nanos-lite"
+NAVY_APPS_DIR="navy-apps"
 
 # ---------------------------------------------------------
 # 0. 环境检查与配置解析
@@ -148,6 +149,23 @@ else
 fi
 
 # ---------------------------------------------------------
+# 4.4. 生成 Navy-apps 的编译数据库
+# ---------------------------------------------------------
+echo ">>> 4.4. Generating compile_commands.json for Navy-apps..."
+cd "$START_DIR/$NAVY_APPS_DIR"
+# 设置 NAVY_HOME 环境变量
+export NAVY_HOME="$START_DIR/$NAVY_APPS_DIR"
+make clean-all
+# 编译 fsimg 包含默认的 apps 和 tests (触发 libs 的编译)
+bear -- make ISA=$ISA fsimg
+if [ -f "compile_commands.json" ]; then
+    mv compile_commands.json compile_commands_navy_apps.json
+    JSON_LIST+=("$START_DIR/$NAVY_APPS_DIR/compile_commands_navy_apps.json")
+else
+    echo "Warning: Failed to generate compile_commands.json in navy-apps"
+fi
+
+# ---------------------------------------------------------
 # 5. 合并数据库
 # ---------------------------------------------------------
 echo ">>> Merging JSON files..."
@@ -194,4 +212,5 @@ rm -f "$START_DIR/$AM_DIR/compile_commands_am_core.json"
 rm -f "$START_DIR/$AM_TESTS_DIR/compile_commands_am_tests.json"
 rm -f "$START_DIR/$ALU_TESTS_DIR/compile_commands_alu_tests.json"
 rm -f "$START_DIR/$NANOS_LITE_DIR/compile_commands_nanos_lite.json"
+rm -f "$START_DIR/$NAVY_APPS_DIR/compile_commands_navy_apps.json"
 # 注意：不删除 $TESTS_DIR/compile_commands.json，因为那是最终输出结果
