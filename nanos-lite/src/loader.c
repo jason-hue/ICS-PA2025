@@ -43,7 +43,6 @@ static uintptr_t loader(PCB *pcb, const char *filename) {
       if (end_addr > max_addr) max_addr = end_addr;
     }
   }
-  // 使用官方 ROUNDUP 宏进行页面对齐
   pcb->max_brk = ROUNDUP(max_addr, PGSIZE);
   free(phdr);
   return ehdr.e_entry;
