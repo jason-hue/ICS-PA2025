@@ -40,7 +40,8 @@ static uintptr_t loader(PCB *pcb, const char *filename) {
       }
     }
   }
-    return ehdr.e_entry;
+  free(phdr);
+  return ehdr.e_entry;
 }
 
 void naive_uload(PCB *pcb, const char *filename) {
