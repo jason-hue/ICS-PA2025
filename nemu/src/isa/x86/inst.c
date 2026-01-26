@@ -679,6 +679,9 @@ again:
   INSTPAT("1010 0010", mov,       a2O,  1, Mw(addr, 1, Rr(R_EAX, 1)));
   INSTPAT("1010 0011", mov,       a2O,  0, Mw(addr, w, Rr(R_EAX, w)));
 
+  INSTPAT("1010 1000", test,      I2a,  1, { word_t temp_imm = imm & 0xff; test(Rr(R_EAX, 1), temp_imm); });
+  INSTPAT("1010 1001", test,      I2a,  0, test(Rr(R_EAX, w), imm));
+
   INSTPAT("1011 0???", mov,       I2r,  1, Rw(rd, 1, imm));
   INSTPAT("1011 1???", mov,       I2r,  0, Rw(rd, w, imm));
   INSTPAT("0101 0???", push,      N,    0, push(Rr(opcode & 0x7,w)));

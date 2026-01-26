@@ -31,6 +31,7 @@ static uintptr_t loader(PCB *pcb, const char *filename) {
   }
   Elf_Phdr* phdr = malloc(ehdr.e_phnum * sizeof(Elf_Phdr));
   ramdisk_read(phdr, ehdr.e_phoff, ehdr.e_phnum * sizeof(Elf_Phdr));
+  uintptr_t max_addr = 0;
   for(int i = 0; i < ehdr.e_phnum; i++)
   {
     if(phdr[i].p_type == PT_LOAD) {
@@ -38,8 +39,12 @@ static uintptr_t loader(PCB *pcb, const char *filename) {
       if (phdr[i].p_memsz > phdr[i].p_filesz) {
         memset((void*)(phdr[i].p_vaddr + phdr[i].p_filesz), 0, phdr[i].p_memsz - phdr[i].p_filesz);
       }
+      uintptr_t end_addr = phdr[i].p_vaddr + phdr[i].p_memsz;
+      if (end_addr > max_addr) max_addr = end_addr;
     }
   }
+  // 使用官方 ROUNDUP 宏进行页面对齐
+  pcb->max_brk = ROUNDUP(max_addr, PGSIZE);
   free(phdr);
   return ehdr.e_entry;
 }
