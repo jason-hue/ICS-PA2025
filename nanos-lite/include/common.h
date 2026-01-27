@@ -19,3 +19,8 @@ size_t ramdisk_read(void *buf, size_t offset, size_t len);
 size_t ramdisk_write(const void *buf, size_t offset, size_t len);
 size_t get_ramdisk_size();
 void do_syscall(Context *c);
+int fs_open(const char *pathname);
+size_t fs_read(int fd, void *buf, size_t len);
+size_t fs_write(int fd, const void *buf, size_t len);
+int fs_close(int fd);
+size_t fs_lseek(int fd, intptr_t offset, int whence);
