@@ -54,4 +54,7 @@ jobs:
           MODEL: google/gemini-3-pro-preview
         run: |
           # 现在运行，它会读取 ~/.config/opencode/oh-my-opencode.json
-          $HOME/.opencode/bin/opencode github run --config ~/.config/opencode/oh-my-opencode.json
+          $HOME/.opencode/bin/opencode github run \
+                      --token ${{ secrets.GITHUB_TOKEN }} \
+                      --config ~/.config/opencode/oh-my-opencode.json \
+                      --print-logs
