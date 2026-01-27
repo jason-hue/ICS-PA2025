@@ -36,7 +36,6 @@ jobs:
         run: |
           # 1. 安装引擎
 
-          手动安装缺失的平台二进制包
           npm install -g oh-my-opencode-linux-x64
 
           bunx oh-my-opencode install
