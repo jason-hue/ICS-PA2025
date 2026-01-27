@@ -139,7 +139,7 @@ static int format_output(char *out, size_t n, const char *fmt, va_list ap) {
 }
 
 int printf(const char *fmt, ...) {
-  char buf[1024];
+  char buf[2048];
   va_list ap;
   va_start(ap, fmt);
   int len = format_output(buf, sizeof(buf), fmt, ap);
