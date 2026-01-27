@@ -16,19 +16,39 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       id-token: write
-      contents: read
-      pull-requests: read
-      issues: read
+      contents: write
+      pull-requests: write
+      issues: write
     steps:
       - name: Checkout repository
         uses: actions/checkout@v6
         with:
+          fetch-depth: 0
           persist-credentials: false
 
-      - name: Run opencode
-        uses: anomalyco/opencode/github@latest
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+
+      - name: Install and Configure
         env:
           GOOGLE_GENERATIVE_AI_API_KEY: ${{ secrets.GOOGLE_GENERATIVE_AI_API_KEY }}
-          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
-        with:
-          model: google/gemini-3-pro-preview
+        run: |
+          # 1. 安装引擎
+          bunx oh-my-opencode install
+          echo "$HOME/.opencode/bin" >> $GITHUB_PATH
+
+          # 2. 创建与本地一致的配置目录
+          mkdir -p ~/.config/opencode
+
+          # 3. 将根目录下的 json 拷贝到该配置目录
+          # 假设你已经把 json 放在了仓库根目录
+          cp oh-my-opencode.json ~/.config/opencode/oh-my-opencode.json
+
+      - name: Run Multi-Agent Review
+        env:
+          GOOGLE_GENERATIVE_AI_API_KEY: ${{ secrets.GOOGLE_GENERATIVE_AI_API_KEY }}
+          GEMINI_API_KEY: ${{ secrets.GOOGLE_GENERATIVE_AI_API_KEY }}
+        run: |
+          # 现在运行，它会读取 ~/.config/opencode/oh-my-opencode.json
+          $HOME/.opencode/bin/opencode github run
