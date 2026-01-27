@@ -1,0 +1,24 @@
+{
+  "$schema": "https://raw.githubusercontent.com/code-yeongyu/oh-my-opencode/master/assets/oh-my-opencode.schema.json",
+  "google_auth": false,
+  "agents": {
+    "oracle": {
+      "model": "google/gemini-3-pro-preview",
+      "options": {
+        "thinking": true
+      },
+      "prompt": "你是首席系统架构师。擅长处理 NEMU 中的 x86 指令解码、EFLAGS 标志位逻辑以及 MMU 页表行走。请进行深度推理，确保模拟逻辑与硬件规范 100% 一致。"
+    },
+    "librarian": {
+      "model": "google/gemini-3-pro-preview",
+      "prompt": "你是规格书与源码专家。负责实时监控 NEMU 项目全案，查阅 Intel SDM 手册并核对 Oracle 提出的逻辑是否会破坏 DiffTest。"
+    },
+    "sisyphus": {
+      "model": "google/gemini-3-pro-preview",
+      "prompt": "你是底层 C 实现专家。负责快速编写 NEMU 的指令宏定义（如 make_EHelper）和简单的 RTL 逻辑。"
+    },
+    "explore": {
+      "model": "google/gemini-3-pro-preview"
+    }
+  }
+}
