@@ -51,6 +51,7 @@ jobs:
         env:
           GOOGLE_GENERATIVE_AI_API_KEY: ${{ secrets.GOOGLE_GENERATIVE_AI_API_KEY }}
           GEMINI_API_KEY: ${{ secrets.GOOGLE_GENERATIVE_AI_API_KEY }}
+          MODEL: google/gemini-3-pro-preview
         run: |
           # 现在运行，它会读取 ~/.config/opencode/oh-my-opencode.json
-          $HOME/.opencode/bin/opencode github run
+          $HOME/.opencode/bin/opencode github run --config ~/.config/opencode/oh-my-opencode.json
