@@ -555,9 +555,8 @@ cpu.esp += w;\
   word_t res = (word_t)full; \
   RMw(res); \
   cpu.eflags.CF = (full >> (w * 8)) & 1; \
-  word_t src_with_carry = src + carry; \
   word_t sign_mask = (word_t)1 << (w * 8 - 1); \
-  cpu.eflags.OF = (~(d ^ src_with_carry) & (d ^ res) & sign_mask) != 0; \
+  cpu.eflags.OF = (~(d ^ src) & (d ^ res) & sign_mask) != 0; \
   word_t res_masked = res; \
   if (w == 1) res_masked &= 0xff; \
   else if (w == 2) res_masked &= 0xffff; \
@@ -572,9 +571,8 @@ cpu.esp += w;\
   word_t res = d - sub; \
   RMw(res); \
   cpu.eflags.CF = d < sub; \
-  word_t src_with_borrow = src + borrow; \
   word_t sign_mask = (word_t)1 << (w * 8 - 1); \
-  cpu.eflags.OF = ((d ^ src_with_borrow) & (d ^ res) & sign_mask) != 0; \
+  cpu.eflags.OF = ((d ^ src) & (d ^ res) & sign_mask) != 0; \
   word_t res_masked = res; \
   if (w == 1) res_masked &= 0xff; \
   else if (w == 2) res_masked &= 0xffff; \
@@ -685,9 +683,15 @@ void _2byte_esc(Decode *s, bool is_operand_size_16) {
     }
   });
   INSTPAT("1010 0011", bt, G2E, 0, {
-    word_t dest = ddest;
-    word_t src = dsrc1 & (w * 8 - 1);
-    cpu.eflags.CF = (dest >> src) & 1;
+    word_t src = dsrc1;
+    if (rd == -1) {
+      word_t byte_addr = addr + (sword_t)src / 8;
+      uint8_t bit_idx = src & 7;
+      cpu.eflags.CF = (vaddr_read(byte_addr, 1) >> bit_idx) & 1;
+    } else {
+      word_t dest = Rr(rd, w);
+      cpu.eflags.CF = (dest >> (src & (w * 8 - 1))) & 1;
+    }
   });
   INSTPAT("1011 1010", gp7, Ib2E, 0, {
     word_t dest = ddest;
@@ -738,7 +742,10 @@ void _2byte_esc(Decode *s, bool is_operand_size_16) {
       case 14: jump = cpu.eflags.ZF || (cpu.eflags.SF != cpu.eflags.OF); break; // jle
       case 15: jump = !cpu.eflags.ZF && (cpu.eflags.SF == cpu.eflags.OF); break; // jg
     }
-    if (jump) s->dnpc += imm;
+    if (jump) {
+      if (w == 2) s->dnpc += (sword_t)(int16_t)imm;
+      else s->dnpc += (sword_t)(int32_t)imm;
+    }
   });
   INSTPAT("0000 0001", system_ins, E, 0, {
     switch (gp_idx)
@@ -847,8 +854,16 @@ again:
     etrace_write(INTR_EMPTY, s->pc, s->dnpc);
   });
   INSTPAT("1100 1100", nemu_trap, N,    0, NEMUTRAP(s->pc, cpu.eax));
-  INSTPAT("1110 1000", call,      J,    0, push(s->snpc);s->dnpc = s->snpc + imm; IFDEF(CONFIG_FTRACE, ftrace_write(s->pc, s->dnpc, true)););
-  INSTPAT("1110 1001", jmp,       J,    0, s->dnpc += imm);
+  INSTPAT("1110 1000", call,      J,    0, {
+    push(s->snpc);
+    if (w == 2) s->dnpc = s->snpc + (sword_t)(int16_t)imm;
+    else s->dnpc = s->snpc + (sword_t)(int32_t)imm;
+    IFDEF(CONFIG_FTRACE, ftrace_write(s->pc, s->dnpc, true));
+  });
+  INSTPAT("1110 1001", jmp,       J,    0, {
+    if (w == 2) s->dnpc += (sword_t)(int16_t)imm;
+    else s->dnpc += (sword_t)(int32_t)imm;
+  });
   INSTPAT("1110 1011", jmp,       J,    1, s->dnpc += (int8_t)imm);
   INSTPAT("1110 0100", in,        N,    1, { ioaddr_t port = x86_inst_fetch(s, 1); s->dnpc = s->snpc; (void)port; word_t val = 0; IFDEF(CONFIG_DEVICE, val = pio_read(port, 1)); Rw(R_EAX, 1, val); });
   INSTPAT("1110 0101", in,        N,    0, { ioaddr_t port = x86_inst_fetch(s, 1); s->dnpc = s->snpc; (void)port; word_t val = 0; IFDEF(CONFIG_DEVICE, val = pio_read(port, w)); Rw(R_EAX, w, val); });
