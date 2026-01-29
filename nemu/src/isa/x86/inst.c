@@ -757,6 +757,7 @@ void _2byte_esc(Decode *s, bool is_operand_size_16) {
 
 int isa_exec_once(Decode *s) {
   bool is_operand_size_16 = false;
+  bool has_rep = false;
   uint8_t opcode = 0;
 
 again:
@@ -770,6 +771,14 @@ again:
   INSTPAT("0000 1111", 2byte_esc, N,    0, _2byte_esc(s, is_operand_size_16));
 
   INSTPAT("0110 0110", data_size, N,    0, is_operand_size_16 = true; goto again;);
+
+  INSTPAT("1111 0011", rep,       N,    0, has_rep = true; goto again;);
+  INSTPAT("1001 0000", nop,       N,    0, );
+  INSTPAT("0011 1010", cmp,       E2G,  1, cmp(ddest, dsrc1));
+  INSTPAT("1000 0110", xchg,      G2E,  1, { word_t temp = ddest; RMw(src1); Rw(rd, 1, temp); });
+  INSTPAT("1000 0111", xchg,      G2E,  0, { word_t temp = ddest; RMw(src1); Rw(rd, w, temp); });
+  INSTPAT("1001 0???", xchg,      N,    0, { int reg = opcode & 0x7; word_t temp = reg_read(reg, w); reg_write(reg, w, reg_read(R_EAX, w)); reg_write(R_EAX, w, temp); });
+  INSTPAT("1001 1000", cbw,       N,    0, { if (is_operand_size_16) reg_w(R_AX) = (int16_t)(int8_t)reg_b(R_AL); else reg_l(R_EAX) = (int32_t)(int16_t)reg_w(R_AX); });
 
   INSTPAT("1001 1001", cltd,      N,    0, { if (w==4) cpu.edx = (int32_t)cpu.eax >> 31; else cpu.dx = (int16_t)cpu.ax >> 15; });
   INSTPAT("1111 0110", gp3,       E,    1, gp3());
@@ -888,6 +897,12 @@ again:
   INSTPAT("0001 1100", sbb,       I2a,  1, sbb(Rr(R_EAX, 1), imm));
   INSTPAT("0001 1101", sbb,       I2a,  0, sbb(Rr(R_EAX, w), imm));
   INSTPAT("1001 0000", nop,       N,    0, );
+
+  INSTPAT("1010 0100", movs,      N,    1, { if (has_rep) { while (cpu.ecx != 0) { Mw(cpu.edi, 1, Mr(cpu.esi, 1)); cpu.esi += (cpu.eflags.DF ? -1 : 1); cpu.edi += (cpu.eflags.DF ? -1 : 1); cpu.ecx --; } } else { Mw(cpu.edi, 1, Mr(cpu.esi, 1)); cpu.esi += (cpu.eflags.DF ? -1 : 1); cpu.edi += (cpu.eflags.DF ? -1 : 1); } });
+  INSTPAT("1010 0101", movs,      N,    0, { if (has_rep) { while (cpu.ecx != 0) { Mw(cpu.edi, w, Mr(cpu.esi, w)); cpu.esi += (cpu.eflags.DF ? -w : w); cpu.edi += (cpu.eflags.DF ? -w : w); cpu.ecx --; } } else { Mw(cpu.edi, w, Mr(cpu.esi, w)); cpu.esi += (cpu.eflags.DF ? -w : w); cpu.edi += (cpu.eflags.DF ? -w : w); } });
+  INSTPAT("1010 1010", stos,      N,    1, { if (has_rep) { while (cpu.ecx != 0) { Mw(cpu.edi, 1, reg_b(R_AL)); cpu.edi += (cpu.eflags.DF ? -1 : 1); cpu.ecx --; } } else { Mw(cpu.edi, 1, reg_b(R_AL)); cpu.edi += (cpu.eflags.DF ? -1 : 1); } });
+  INSTPAT("1010 1011", stos,      N,    0, { if (has_rep) { while (cpu.ecx != 0) { Mw(cpu.edi, w, reg_read(R_EAX, w)); cpu.edi += (cpu.eflags.DF ? -w : w); cpu.ecx --; } } else { Mw(cpu.edi, w, reg_read(R_EAX, w)); cpu.edi += (cpu.eflags.DF ? -w : w); } });
+
   INSTPAT("0111 ????", jcc, J, 1, {
     int cond = opcode & 0xf;
     bool jump = false;
@@ -994,8 +1009,12 @@ again:
     push(cpu.edi);
   });
 
+  INSTPAT("1111 1000", clc, N, 0, cpu.eflags.CF = 0);
+  INSTPAT("1111 1001", stc, N, 0, cpu.eflags.CF = 1);
   INSTPAT("1111 1010", cli, N, 0, cpu.eflags.IF = 0);
   INSTPAT("1111 1011", sti, N, 0, cpu.eflags.IF = 1);
+  INSTPAT("1111 1100", cld, N, 0, cpu.eflags.DF = 0);
+  INSTPAT("1111 1101", std, N, 0, cpu.eflags.DF = 1);
   INSTPAT("???? ????", inv,       N,    0, INV(s->pc));//通配符
   INSTPAT_END();
 
