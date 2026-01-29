@@ -182,6 +182,10 @@ static void decode_operand(Decode *s, uint8_t opcode, int *rd_, word_t *src1,
     case TYPE_1_E:  decode_rm(s, rd_, addr, gp_idx, w); *imm = 1; break;
     case TYPE_cl2E: decode_rm(s, rd_, addr, gp_idx, w); *imm = reg_b(R_CL); break;
     case TYPE_Ib2E: decode_rm(s, rd_, addr, gp_idx, w); *imm = x86_inst_fetch(s, 1); break;
+    case TYPE_Ib_G2E: decode_rm(s, rd_, addr, rs, w); src1r(*rs); *imm = x86_inst_fetch(s, 1); break;
+    case TYPE_cl_G2E: decode_rm(s, rd_, addr, rs, w); src1r(*rs); *imm = reg_b(R_CL); break;
+    case TYPE_SI_E2G: decode_rm(s, rs, addr, rd_, w); simm(1); break;
+    case TYPE_I_E2G: decode_rm(s, rs, addr, rd_, w); imm(); break;
     default: panic("Unsupported type = %d", type);
   }
 }
@@ -351,6 +355,54 @@ cpu.esp += w;\
   word_t dest = ddest; \
   word_t res = dest; \
   switch (gp_idx) { \
+    case 0: /* rol */ \
+      if (count > 0) { \
+        res = (dest << count) | (dest >> (w*8 - count)); \
+        if (w == 1) res &= 0xff; else if (w == 2) res &= 0xffff; \
+        RMw(res); \
+        cpu.eflags.CF = res & 1; \
+        if (count == 1) cpu.eflags.OF = (res >> (w*8-1)) ^ cpu.eflags.CF; \
+      } \
+      break; \
+    case 1: /* ror */ \
+      if (count > 0) { \
+        res = (dest >> count) | (dest << (w*8 - count)); \
+        if (w == 1) res &= 0xff; else if (w == 2) res &= 0xffff; \
+        RMw(res); \
+        cpu.eflags.CF = (res >> (w*8-1)) & 1; \
+        if (count == 1) cpu.eflags.OF = ((res >> (w*8-1)) ^ (res >> (w*8-2))) & 1; \
+      } \
+      break; \
+    case 2: /* rcl */ \
+      if (count > 0) { \
+        word_t next_cf = cpu.eflags.CF; \
+        for (int i = 0; i < count; i++) { \
+          word_t t = (dest >> (w * 8 - 1)) & 1; \
+          dest = (dest << 1) | next_cf; \
+          next_cf = t; \
+        } \
+        if (w == 1) dest &= 0xff; else if (w == 2) dest &= 0xffff; \
+        res = dest; \
+        RMw(res); \
+        cpu.eflags.CF = next_cf; \
+        if (count == 1) cpu.eflags.OF = (res >> (w * 8 - 1)) ^ cpu.eflags.CF; \
+      } \
+      break; \
+    case 3: /* rcr */ \
+      if (count > 0) { \
+        word_t next_cf = cpu.eflags.CF; \
+        for (int i = 0; i < count; i++) { \
+          word_t t = dest & 1; \
+          dest = (dest >> 1) | (next_cf << (w * 8 - 1)); \
+          next_cf = t; \
+        } \
+        if (w == 1) dest &= 0xff; else if (w == 2) dest &= 0xffff; \
+        res = dest; \
+        RMw(res); \
+        cpu.eflags.CF = next_cf; \
+        if (count == 1) cpu.eflags.OF = ((res >> (w * 8 - 1)) ^ (res >> (w * 8 - 2))) & 1; \
+      } \
+      break; \
     case 4: \
       res = dest << count; \
       RMw(res); \
@@ -493,10 +545,7 @@ cpu.esp += w;\
 #define xor(dest, src) do { \
   word_t res = dest ^ src; \
   RMw(res); \
-  cpu.eflags.CF = 0; \
-  cpu.eflags.OF = 0; \
-  cpu.eflags.ZF = (res == 0); \
-  cpu.eflags.SF = (res >> (w * 8 - 1)) & 1; \
+  update_eflags(6, dest, src, res, w); \
 } while (0)
 
 #define adc(dest, src) do { \
@@ -586,6 +635,70 @@ void _2byte_esc(Decode *s, bool is_operand_size_16) {
   INSTPAT("1011 1111", movsx, E2G, 0, {
     word_t src = (rs != -1 ? Rr(rs, 2) : Mr(addr, 2));
     Rw(rd, w, SEXT(src, 16));
+  });
+  INSTPAT("1010 0101", shld, cl_G2E, 0, {
+    word_t count = imm & 0x1f;
+    if (count > 0) {
+      word_t dest = ddest;
+      word_t src = dsrc1;
+      word_t res = (dest << count) | (src >> (w * 8 - count));
+      RMw(res);
+      cpu.eflags.CF = (dest >> (w * 8 - count)) & 1;
+      cpu.eflags.ZF = (res == 0);
+      cpu.eflags.SF = (res >> (w * 8 - 1)) & 1;
+    }
+  });
+  INSTPAT("1010 0100", shld, Ib_G2E, 0, {
+    word_t count = imm & 0x1f;
+    if (count > 0) {
+      word_t dest = ddest;
+      word_t src = dsrc1;
+      word_t res = (dest << count) | (src >> (w * 8 - count));
+      RMw(res);
+      cpu.eflags.CF = (dest >> (w * 8 - count)) & 1;
+      cpu.eflags.ZF = (res == 0);
+      cpu.eflags.SF = (res >> (w * 8 - 1)) & 1;
+    }
+  });
+  INSTPAT("1010 1101", shrd, cl_G2E, 0, {
+    word_t count = imm & 0x1f;
+    if (count > 0) {
+      word_t dest = ddest;
+      word_t src = dsrc1;
+      word_t res = (dest >> count) | (src << (w * 8 - count));
+      RMw(res);
+      cpu.eflags.CF = (dest >> (count - 1)) & 1;
+      cpu.eflags.ZF = (res == 0);
+      cpu.eflags.SF = (res >> (w * 8 - 1)) & 1;
+    }
+  });
+  INSTPAT("1010 1100", shrd, Ib_G2E, 0, {
+    word_t count = imm & 0x1f;
+    if (count > 0) {
+      word_t dest = ddest;
+      word_t src = dsrc1;
+      word_t res = (dest >> count) | (src << (w * 8 - count));
+      RMw(res);
+      cpu.eflags.CF = (dest >> (count - 1)) & 1;
+      cpu.eflags.ZF = (res == 0);
+      cpu.eflags.SF = (res >> (w * 8 - 1)) & 1;
+    }
+  });
+  INSTPAT("1010 0011", bt, G2E, 0, {
+    word_t dest = ddest;
+    word_t src = dsrc1 & (w * 8 - 1);
+    cpu.eflags.CF = (dest >> src) & 1;
+  });
+  INSTPAT("1011 1010", gp7, Ib2E, 0, {
+    word_t dest = ddest;
+    word_t src = imm & (w * 8 - 1);
+    switch (gp_idx) {
+      case 4: cpu.eflags.CF = (dest >> src) & 1; break;
+      case 5: cpu.eflags.CF = (dest >> src) & 1; RMw(dest | (1 << src)); break;
+      case 6: cpu.eflags.CF = (dest >> src) & 1; RMw(dest & ~(1 << src)); break;
+      case 7: cpu.eflags.CF = (dest >> src) & 1; RMw(dest ^ (1 << src)); break;
+      default: INV(s->pc);
+    }
   });
   INSTPAT("1010 1111", imul2, E2G, 0, {
     word_t src = dsrc1;
@@ -681,6 +794,24 @@ again:
 
   INSTPAT("1010 1000", test,      I2a,  1, { word_t temp_imm = imm & 0xff; test(Rr(R_EAX, 1), temp_imm); });
   INSTPAT("1010 1001", test,      I2a,  0, test(Rr(R_EAX, w), imm));
+  INSTPAT("0000 1100", or,        I2a,  1, or(Rr(R_EAX, 1), imm));
+  INSTPAT("0000 1101", or,        I2a,  0, or(Rr(R_EAX, w), imm));
+  INSTPAT("0011 0100", xor,       I2a,  1, xor(Rr(R_EAX, 1), imm));
+  INSTPAT("0011 0101", xor,       I2a,  0, xor(Rr(R_EAX, w), imm));
+  INSTPAT("0110 1011", imul3,     SI_E2G, 0, {
+    word_t src = (rs != -1 ? Rr(rs, w) : Mr(addr, w));
+    int64_t full = (int64_t)(int32_t)src * (int64_t)(int32_t)imm;
+    word_t res = (word_t)full;
+    Rw(rd, w, res);
+    cpu.eflags.CF = cpu.eflags.OF = (full != (int64_t)(int32_t)res);
+  });
+  INSTPAT("0110 1001", imul3,     I_E2G, 0, {
+    word_t src = (rs != -1 ? Rr(rs, w) : Mr(addr, w));
+    int64_t full = (int64_t)(int32_t)src * (int64_t)(int32_t)imm;
+    word_t res = (word_t)full;
+    Rw(rd, w, res);
+    cpu.eflags.CF = cpu.eflags.OF = (full != (int64_t)(int32_t)res);
+  });
 
   INSTPAT("1011 0???", mov,       I2r,  1, Rw(rd, 1, imm));
   INSTPAT("1011 1???", mov,       I2r,  0, Rw(rd, w, imm));
