@@ -17,6 +17,13 @@ NAVY_APPS_DIR="navy-apps"
 # 0. 环境检查与配置解析
 # ---------------------------------------------------------
 
+# Check if am-kernels directory exists
+AM_KERNELS_DIR="$START_DIR/am-kernels"
+if [ ! -d "$AM_KERNELS_DIR" ] || [ -z "$(ls -A "$AM_KERNELS_DIR" 2>/dev/null)" ]; then
+    echo -e "\033[1;37;41m Error: am-kernels directory not found or empty. Please run 'bash init.sh am-kernels' first. \033[0m"
+    exit 1
+fi
+
 # 检查 .config 是否存在
 CONFIG_FILE="$START_DIR/$NEMU_DIR/.config"
 if [ ! -f "$CONFIG_FILE" ]; then
@@ -135,23 +142,9 @@ else
 fi
 
 # ---------------------------------------------------------
-# 4.3. 生成 Nanos-lite 的编译数据库
+# 4.3. 生成 Navy-apps 的编译数据库
 # ---------------------------------------------------------
-echo ">>> 4.3. Generating compile_commands.json for Nanos-lite..."
-cd "$START_DIR/$NANOS_LITE_DIR"
-make clean
-bear -- make ARCH=$TARGET_ARCH
-if [ -f "compile_commands.json" ]; then
-    mv compile_commands.json compile_commands_nanos_lite.json
-    JSON_LIST+=("$START_DIR/$NANOS_LITE_DIR/compile_commands_nanos_lite.json")
-else
-    echo "Warning: Failed to generate compile_commands.json in nanos-lite"
-fi
-
-# ---------------------------------------------------------
-# 4.4. 生成 Navy-apps 的编译数据库
-# ---------------------------------------------------------
-echo ">>> 4.4. Generating compile_commands.json for Navy-apps..."
+echo ">>> 4.3. Generating compile_commands.json for Navy-apps..."
 cd "$START_DIR/$NAVY_APPS_DIR"
 # 设置 NAVY_HOME 环境变量
 export NAVY_HOME="$START_DIR/$NAVY_APPS_DIR"
@@ -164,6 +157,22 @@ if [ -f "compile_commands.json" ]; then
 else
     echo "Warning: Failed to generate compile_commands.json in navy-apps"
 fi
+
+# ---------------------------------------------------------
+# 4.4. 生成 Nanos-lite 的编译数据库
+# ---------------------------------------------------------
+echo ">>> 4.4. Generating compile_commands.json for Nanos-lite..."
+cd "$START_DIR/$NANOS_LITE_DIR"
+make clean
+make ARCH=$TARGET_ARCH update
+bear -- make ARCH=$TARGET_ARCH
+if [ -f "compile_commands.json" ]; then
+    mv compile_commands.json compile_commands_nanos_lite.json
+    JSON_LIST+=("$START_DIR/$NANOS_LITE_DIR/compile_commands_nanos_lite.json")
+else
+    echo "Warning: Failed to generate compile_commands.json in nanos-lite"
+fi
+
 
 # ---------------------------------------------------------
 # 5. 合并数据库
