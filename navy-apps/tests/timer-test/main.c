@@ -8,7 +8,7 @@ int main() {
 
     printf("Timer test (NDL) start...\n");
 
-    while (1) {
+    while (count < 50) {
         uint32_t cur_ms = NDL_GetTicks();
         if (cur_ms - last_ms >= 500) {
             printf("NDL Timer: 0.5s passed (Count: %d)\n", ++count);
