@@ -1,7 +1,7 @@
 #include <common.h>
 #include "syscall.h"
 #include <memory.h>
-
+#include <sys/time.h>
 #ifdef STRACE
 static const char *syscall_names[] = {
   "exit", "yield", "open", "read", "write", "kill", "getpid", "close",
@@ -61,6 +61,17 @@ void do_syscall(Context *c) {
     case SYS_brk:
       c->GPRx = mm_brk(a[1]);
       break;
+    case SYS_gettimeofday:
+      {
+        struct timeval *tv = (struct timeval *)a[1];
+        if (tv != NULL) {
+          AM_TIMER_UPTIME_T uptime = io_read(AM_TIMER_UPTIME);
+          tv->tv_sec = uptime.us / 1000000;
+          tv->tv_usec = uptime.us % 1000000;
+        }
+        c->GPRx = 0;
+        break;
+      }
     default: panic("Unhandled syscall ID = %d", a[0]);
   }
 
