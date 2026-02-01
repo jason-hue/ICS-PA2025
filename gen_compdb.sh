@@ -17,6 +17,19 @@ NAVY_APPS_DIR="navy-apps"
 # 0. 环境检查与配置解析
 # ---------------------------------------------------------
 
+# 解析参数：支持 -j 开启多核编译
+MAKE_FLAGS=""
+while [[ "$#" -gt 0 ]]; do
+    case $1 in
+        -j) MAKE_FLAGS="-j$(nproc)"; shift ;;
+        *) echo "Unknown parameter passed: $1"; exit 1 ;;
+    esac
+done
+
+if [ -n "$MAKE_FLAGS" ]; then
+    echo ">>> Multi-core compilation enabled: $MAKE_FLAGS"
+fi
+
 # Check if am-kernels directory exists
 AM_KERNELS_DIR="$START_DIR/am-kernels"
 if [ ! -d "$AM_KERNELS_DIR" ] || [ -z "$(ls -A "$AM_KERNELS_DIR" 2>/dev/null)" ]; then
@@ -55,7 +68,7 @@ JSON_LIST=()
 echo ">>> 1. Generating compile_commands.json for NEMU..."
 cd "$START_DIR/$NEMU_DIR"
 make clean
-bear -- make
+bear -- make $MAKE_FLAGS
 if [ -f "compile_commands.json" ]; then
     mv compile_commands.json compile_commands_nemu.json
     JSON_LIST+=("$START_DIR/$NEMU_DIR/compile_commands_nemu.json")
@@ -72,7 +85,7 @@ cd "$START_DIR/$AM_DIR"
 # 清理 klib
 make -C klib clean
 # 生成
-bear -- make ARCH=$TARGET_ARCH -C klib archive
+bear -- make $MAKE_FLAGS ARCH=$TARGET_ARCH -C klib archive
 if [ -f "compile_commands.json" ]; then
     mv compile_commands.json compile_commands_am_klib.json
     JSON_LIST+=("$START_DIR/$AM_DIR/compile_commands_am_klib.json")
@@ -88,7 +101,7 @@ cd "$START_DIR/$AM_DIR"
 # 清理 am
 make -C am clean
 # 生成
-bear -- make ARCH=$TARGET_ARCH -C am archive
+bear -- make $MAKE_FLAGS ARCH=$TARGET_ARCH -C am archive
 if [ -f "compile_commands.json" ]; then
     mv compile_commands.json compile_commands_am_core.json
     JSON_LIST+=("$START_DIR/$AM_DIR/compile_commands_am_core.json")
@@ -103,7 +116,7 @@ fi
 echo ">>> 4. Generating compile_commands.json for CPU Tests..."
 cd "$START_DIR/$TESTS_DIR"
 make clean
-bear -- make ARCH=$TARGET_ARCH
+bear -- make $MAKE_FLAGS ARCH=$TARGET_ARCH
 if [ -f "compile_commands.json" ]; then
     # 这里的 compile_commands.json 就是最终要被覆盖/使用的目标位置
     # 我们先把它加入列表读取内容，最后脚本会重新生成合并版覆盖它
@@ -119,7 +132,7 @@ fi
 echo ">>> 4.1. Generating compile_commands.json for AM Tests..."
 cd "$START_DIR/$AM_TESTS_DIR"
 make clean
-bear -- make ARCH=$TARGET_ARCH
+bear -- make $MAKE_FLAGS ARCH=$TARGET_ARCH
 if [ -f "compile_commands.json" ]; then
     mv compile_commands.json compile_commands_am_tests.json
     JSON_LIST+=("$START_DIR/$AM_TESTS_DIR/compile_commands_am_tests.json")
@@ -133,7 +146,7 @@ fi
 echo ">>> 4.2. Generating compile_commands.json for ALU Tests..."
 cd "$START_DIR/$ALU_TESTS_DIR"
 make clean
-bear -- make ARCH=$TARGET_ARCH
+bear -- make $MAKE_FLAGS ARCH=$TARGET_ARCH
 if [ -f "compile_commands.json" ]; then
     mv compile_commands.json compile_commands_alu_tests.json
     JSON_LIST+=("$START_DIR/$ALU_TESTS_DIR/compile_commands_alu_tests.json")
@@ -150,12 +163,26 @@ cd "$START_DIR/$NAVY_APPS_DIR"
 export NAVY_HOME="$START_DIR/$NAVY_APPS_DIR"
 make clean-all
 # 编译 fsimg 包含默认的 apps 和 tests (触发 libs 的编译)
-bear -- make ISA=$ISA fsimg
+bear -- make $MAKE_FLAGS ISA=$ISA fsimg
 if [ -f "compile_commands.json" ]; then
     mv compile_commands.json compile_commands_navy_apps.json
     JSON_LIST+=("$START_DIR/$NAVY_APPS_DIR/compile_commands_navy_apps.json")
 else
     echo "Warning: Failed to generate compile_commands.json in navy-apps"
+fi
+
+# ---------------------------------------------------------
+# 4.3.1. 生成 libminiSDL 的编译数据库
+# ---------------------------------------------------------
+echo ">>> 4.3.1. Generating compile_commands.json for libminiSDL..."
+cd "$START_DIR/$NAVY_APPS_DIR/libs/libminiSDL"
+make clean
+bear -- make $MAKE_FLAGS ISA=$ISA archive
+if [ -f "compile_commands.json" ]; then
+    mv compile_commands.json compile_commands_libminisdl.json
+    JSON_LIST+=("$START_DIR/$NAVY_APPS_DIR/libs/libminiSDL/compile_commands_libminisdl.json")
+else
+    echo "Warning: Failed to generate compile_commands.json for libminiSDL"
 fi
 
 # ---------------------------------------------------------
@@ -165,7 +192,7 @@ echo ">>> 4.4. Generating compile_commands.json for Nanos-lite..."
 cd "$START_DIR/$NANOS_LITE_DIR"
 make clean
 make ARCH=$TARGET_ARCH update
-bear -- make ARCH=$TARGET_ARCH
+bear -- make $MAKE_FLAGS ARCH=$TARGET_ARCH
 if [ -f "compile_commands.json" ]; then
     mv compile_commands.json compile_commands_nanos_lite.json
     JSON_LIST+=("$START_DIR/$NANOS_LITE_DIR/compile_commands_nanos_lite.json")
@@ -222,4 +249,5 @@ rm -f "$START_DIR/$AM_TESTS_DIR/compile_commands_am_tests.json"
 rm -f "$START_DIR/$ALU_TESTS_DIR/compile_commands_alu_tests.json"
 rm -f "$START_DIR/$NANOS_LITE_DIR/compile_commands_nanos_lite.json"
 rm -f "$START_DIR/$NAVY_APPS_DIR/compile_commands_navy_apps.json"
+rm -f "$START_DIR/$NAVY_APPS_DIR/libs/libminiSDL/compile_commands_libminisdl.json"
 # 注意：不删除 $TESTS_DIR/compile_commands.json，因为那是最终输出结果
