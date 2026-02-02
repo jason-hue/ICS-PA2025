@@ -90,7 +90,7 @@ config CC
 
 choice
   prompt "Optimization Level"
-  default CC_O2
+  default CC_O3
 config CC_O0
   bool "O0"
 config CC_O1
@@ -112,7 +112,7 @@ config CC_OPT
 config CC_LTO
   depends on !TARGET_AM
   bool "Enable link-time optimization"
-  default n
+  default y
 
 config CC_DEBUG
   bool "Enable debug information"

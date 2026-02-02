@@ -41,9 +41,11 @@ static void trace_and_difftest(Decode *_this, vaddr_t dnpc) {
   IFDEF(CONFIG_IRINGBUF, iringbuf_write(_this->logbuf));
   IFDEF(CONFIG_DIFFTEST, difftest_step(_this->pc, dnpc));
   
-  WP *wp = scan_watchpoint();
-  if (wp != NULL) {
-    nemu_state.state = NEMU_STOP;
+  if (!is_wp_list_empty()) {
+    WP *wp = scan_watchpoint();
+    if (wp != NULL) {
+      nemu_state.state = NEMU_STOP;
+    }
   }
 }
 
@@ -90,7 +92,7 @@ static void execute(uint64_t n) {
 
 
     if (nemu_state.state != NEMU_RUNNING) break;//将state改成stop就能实现暂停执行，本质上是打破了 CPU 的取指-执行循环。
-    IFDEF(CONFIG_DEVICE, device_update());
+    IFDEF(CONFIG_DEVICE, if (g_nr_guest_inst % 65536 == 0) device_update());
     word_t intr = isa_query_intr();
     if (intr != INTR_EMPTY) {
       cpu.pc = isa_raise_intr(intr, cpu.pc);

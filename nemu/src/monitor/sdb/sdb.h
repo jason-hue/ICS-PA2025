@@ -24,6 +24,7 @@ word_t expr(char *e, bool *success);
 int set_watchpoint(char *e);
 bool delete_watchpoint(int no);
 void list_watchpoints();
+bool is_wp_list_empty();
 WP* scan_watchpoint();
 void init_wp_pool();
 

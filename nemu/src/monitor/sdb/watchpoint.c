@@ -119,6 +119,10 @@ void list_watchpoints() {
   }
 }
 
+bool is_wp_list_empty() {
+  return head == NULL;
+}
+
 WP* scan_watchpoint() {
   WP *wp = head;
   while (wp != NULL) {
