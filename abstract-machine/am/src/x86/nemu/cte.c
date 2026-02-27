@@ -61,7 +61,18 @@ bool cte_init(Context*(*handler)(Event, Context*)) {
 
 
 Context* kcontext(Area kstack, void (*entry)(void *), void *arg) {
-  return NULL;
+  uintptr_t *stack_top = (uintptr_t *)(kstack.end);
+  stack_top[-1] = (uintptr_t)arg;
+  stack_top[-2] = 0;
+  Context *cp = (Context *)((uintptr_t)stack_top - 8 - sizeof(Context));
+  for (int i = 0; i < sizeof(Context) / sizeof(uintptr_t); i++) {
+    ((uintptr_t *)cp)[i] = 0;
+  }
+  cp->eip = (uintptr_t)entry;
+  cp->cs = 0x8;
+  cp->eflags = 0x202;
+  cp->esp = (uintptr_t)(stack_top - 2);
+  return cp;
 }
 
 void yield() {

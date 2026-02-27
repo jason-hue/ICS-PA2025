@@ -13,6 +13,8 @@ __am_asm_trap:
   pushl %esp
   call __am_irq_handle
 
+  movl %eax, %esp #将栈顶指针切换到新进程的上下文结构
+
   addl $4, %esp
 
   addl $4, %esp
