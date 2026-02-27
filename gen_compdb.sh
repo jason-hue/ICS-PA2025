@@ -199,6 +199,49 @@ if [ -f "compile_commands.json" ]; then
 else
     echo "Warning: Failed to generate compile_commands.json in nanos-lite"
 fi
+# ---------------------------------------------------------
+# 4.5. 生成 AM Kernels 的编译数据库
+# ---------------------------------------------------------
+echo ">>> 4.5. Generating compile_commands.json for AM Kernels..."
+KERNELS_DIR="$START_DIR/am-kernels/kernels"
+for d in $(ls -d $KERNELS_DIR/*/); do
+    KERNEL_NAME=$(basename $d)
+    echo "Processing kernel: $KERNEL_NAME"
+    # 检查是否为标准 AM 项目 (包含 include $(AM_HOME)/Makefile)
+    if [ -f "$d/Makefile" ] && grep -q "include \$(AM_HOME)/Makefile" "$d/Makefile"; then
+        cd "$d"
+        make clean
+        bear -- make $MAKE_FLAGS ARCH=$TARGET_ARCH
+        if [ -f "compile_commands.json" ]; then
+            mv compile_commands.json "compile_commands_kernel_${KERNEL_NAME}.json"
+            JSON_LIST+=("$d/compile_commands_kernel_${KERNEL_NAME}.json")
+        else
+            echo "Warning: Failed to generate compile_commands.json for kernel $KERNEL_NAME"
+        fi
+    else
+        echo "Skipping non-standard AM project: $KERNEL_NAME"
+    fi
+done
+
+# ---------------------------------------------------------
+# 4.6. 生成 AM Benchmarks 的编译数据库
+# ---------------------------------------------------------
+echo ">>> 4.6. Generating compile_commands.json for AM Benchmarks..."
+BENCHMARKS_DIR="$START_DIR/am-kernels/benchmarks"
+for d in $(ls -d $BENCHMARKS_DIR/*/); do
+    BENCH_NAME=$(basename $d)
+    echo "Processing benchmark: $BENCH_NAME"
+    cd "$d"
+    make clean
+    bear -- make $MAKE_FLAGS ARCH=$TARGET_ARCH
+    if [ -f "compile_commands.json" ]; then
+        mv compile_commands.json "compile_commands_bench_${BENCH_NAME}.json"
+        JSON_LIST+=("$d/compile_commands_bench_${BENCH_NAME}.json")
+    else
+        echo "Warning: Failed to generate compile_commands.json for benchmark $BENCH_NAME"
+    fi
+done
+
 
 
 # ---------------------------------------------------------
@@ -242,12 +285,9 @@ echo ">>> Done! Merged compile_commands.json created at: $FINAL_JSON"
 # 6. 清理临时文件
 # ---------------------------------------------------------
 echo ">>> cleaning temporary files..."
-rm -f "$START_DIR/$NEMU_DIR/compile_commands_nemu.json"
-rm -f "$START_DIR/$AM_DIR/compile_commands_am_klib.json"
-rm -f "$START_DIR/$AM_DIR/compile_commands_am_core.json"
-rm -f "$START_DIR/$AM_TESTS_DIR/compile_commands_am_tests.json"
-rm -f "$START_DIR/$ALU_TESTS_DIR/compile_commands_alu_tests.json"
-rm -f "$START_DIR/$NANOS_LITE_DIR/compile_commands_nanos_lite.json"
-rm -f "$START_DIR/$NAVY_APPS_DIR/compile_commands_navy_apps.json"
-rm -f "$START_DIR/$NAVY_APPS_DIR/libs/libminiSDL/compile_commands_libminisdl.json"
+for f in "${JSON_LIST[@]}"; do
+    if [[ "$f" != "$FINAL_JSON" ]]; then
+        rm -f "$f"
+    fi
+done
 # 注意：不删除 $TESTS_DIR/compile_commands.json，因为那是最终输出结果
