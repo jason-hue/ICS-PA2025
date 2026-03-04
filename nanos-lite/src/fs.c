@@ -57,11 +57,12 @@ int fs_open(const char *pathname)
       return i;
     }
   }
-  panic("File %s not found\n", pathname);
+  return -1;
 }
 
 size_t fs_read(int fd, void *buf, size_t len)
 {
+  if (fd < 0 || fd >= sizeof(file_table) / sizeof(file_table[0])) return -1;
   Finfo *f = &file_table[fd];
   if (f->read != NULL) {
     return f->read(buf, f->open_offset, len);
@@ -78,6 +79,7 @@ int fs_close(int fd) {
   return 0;
 }
 size_t fs_lseek(int fd, intptr_t offset, int whence) {
+  if (fd < 0 || fd >= sizeof(file_table) / sizeof(file_table[0])) return -1;
   Finfo *f = &file_table[fd];
   intptr_t new_offset = f->open_offset;
   switch(whence) {
@@ -95,6 +97,7 @@ size_t fs_lseek(int fd, intptr_t offset, int whence) {
   return f->open_offset;
 }
 size_t fs_write(int fd, const void *buf, size_t len) {
+  if (fd < 0 || fd >= sizeof(file_table) / sizeof(file_table[0])) return -1;
   Finfo *f = &file_table[fd];
   size_t n = -1;
   if (f->write != NULL) {
