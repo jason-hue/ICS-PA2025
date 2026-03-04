@@ -23,3 +23,5 @@ extern PCB *current;
 void naive_uload(PCB *pcb, const char *filename);
 void context_kload(PCB *pcb, void (*entry)(void *), void *arg);
 Context* schedule(Context *prev);
+uintptr_t loader(PCB *pcb, const char *filename);
+void context_uload(PCB *pcb, const char *filename);

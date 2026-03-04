@@ -9,6 +9,10 @@ static Context* do_event(Event e, Context* c) {
       c = schedule(c);
       break;
     }
+    case EVENT_IRQ_TIMER:
+      // Log("Timer interrupt");
+      c = schedule(c);
+      break;
     case EVENT_SYSCALL:
       {
         do_syscall(c);

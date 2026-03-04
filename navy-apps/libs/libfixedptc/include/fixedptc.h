@@ -124,6 +124,28 @@ typedef	__uint128_t fixedptud;
  * (e.g. microcontrollers, kernels), so we can't use floating point types directly.
  * Putting them only in macros will effectively make them optional. */
 #define fixedpt_tofloat(T) ((float) ((T)*((float)(1)/(float)(1L << FIXEDPT_FBITS))))
+static inline fixedpt fixedpt_fromfloat(void *p) {
+	uint32_t val = *(uint32_t *)p;
+	uint32_t sign = val >> 31;
+	int32_t exp = ((val >> 23) & 0xff) - 127;
+	uint32_t frac = (val & 0x7fffff) | (1 << 23);
+
+	if (exp == -127) return 0;
+
+	int shift = exp + FIXEDPT_FBITS - 23;
+	fixedpt res;
+	if (shift > 0) {
+		res = frac << shift;
+	} else if (shift < 0) {
+		if (-shift >= 32) return 0;
+		res = frac >> (-shift);
+	} else {
+		res = frac;
+	}
+
+	return sign ? -res : res;
+}
+
 
 /* Multiplies a fixedpt number with an integer, returns the result. */
 static inline fixedpt fixedpt_muli(fixedpt A, int B) {
@@ -151,11 +173,11 @@ static inline fixedpt fixedpt_abs(fixedpt A) {
 }
 
 static inline fixedpt fixedpt_floor(fixedpt A) {
-	return (A >> FIXEDPT_FBITS) << FIXEDPT_FBITS;
+	return A & ~FIXEDPT_FMASK;
 }
 
 static inline fixedpt fixedpt_ceil(fixedpt A) {
-	return (A + FIXEDPT_FMASK) >> FIXEDPT_FBITS << FIXEDPT_FBITS;
+	return (A + FIXEDPT_FMASK) & ~FIXEDPT_FMASK;
 }
 
 /*

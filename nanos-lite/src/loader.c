@@ -22,9 +22,12 @@
 # error Unsupported ISA
 #endif
 
-static uintptr_t loader(PCB *pcb, const char *filename) {
+uintptr_t loader(PCB *pcb, const char *filename) {
   Elf_Ehdr ehdr;
   int fd = fs_open(filename);
+  if (fd < 0) {
+    panic("Cannot find executable file: %s", filename);
+  }
   fs_read(fd, &ehdr, sizeof(Elf_Ehdr));
   assert(memcmp(ehdr.e_ident, ELFMAG, SELFMAG) == 0);
   if (ehdr.e_machine != EXPECT_TYPE) {
