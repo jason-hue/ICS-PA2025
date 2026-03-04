@@ -12,6 +12,7 @@ void __am_irq0();
 void __am_vecsys();
 void __am_vectrap();
 void __am_vecnull();
+void __am_kcontext_start();
 
 
 Context* __am_irq_handle(Context *c) {
@@ -61,17 +62,19 @@ bool cte_init(Context*(*handler)(Event, Context*)) {
 
 
 Context* kcontext(Area kstack, void (*entry)(void *), void *arg) {
-  uintptr_t *stack_top = (uintptr_t *)(kstack.end);
-  stack_top[-1] = (uintptr_t)arg;
-  stack_top[-2] = 0;
-  Context *cp = (Context *)((uintptr_t)stack_top - 8 - sizeof(Context));
+  // uintptr_t *stack_top = (uintptr_t *)(kstack.end);
+  // stack_top[-1] = (uintptr_t)arg;
+  // stack_top[-2] = 0;
+  Context *cp = (Context *)((uintptr_t)kstack.end - 8 - sizeof(Context));
   for (int i = 0; i < sizeof(Context) / sizeof(uintptr_t); i++) {
     ((uintptr_t *)cp)[i] = 0;
   }
-  cp->eip = (uintptr_t)entry;
+  cp->eip = (uintptr_t)__am_kcontext_start;
   cp->cs = 0x8;
   cp->eflags = 0x202;
-  cp->esp = (uintptr_t)(stack_top - 2);
+  cp->esp = (uintptr_t)(kstack.end - 2);
+  cp->eax = (uintptr_t)entry;
+  cp->edx = (uintptr_t)arg;
   return cp;
 }
 

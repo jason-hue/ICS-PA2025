@@ -3,7 +3,7 @@
 .globl __am_vectrap;  __am_vectrap: pushl $0x81; jmp __am_asm_trap
 .globl __am_irq0;        __am_irq0: pushl   $32; jmp __am_asm_trap
 .globl __am_vecnull;  __am_vecnull: pushl   $-1; jmp __am_asm_trap
-
+.globl __am_kcontext_start;
 
 __am_asm_trap:
   pushal
@@ -22,3 +22,8 @@ __am_asm_trap:
   addl $4, %esp
 
   iret
+
+__am_kcontext_start:
+    pushl %edx
+    pushl $0
+    jmp *%eax
