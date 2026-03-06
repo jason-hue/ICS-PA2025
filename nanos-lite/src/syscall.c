@@ -74,10 +74,16 @@ void do_syscall(Context *c) {
         break;
       }
     case SYS_execve: {
-      context_uload(current, (char *)a[1], (char **)a[2], (char **)a[3]);
-      switch_boot_pcb();
-      yield();
-      c->GPRx = 0;
+      char *path = (char *)a[1];
+      int fd = fs_open(path);
+      if (fd < 0) {
+        c->GPRx = -2;
+      } else {
+        fs_close(fd);
+        context_uload(current, path, (char **)a[2], (char **)a[3]);
+        switch_boot_pcb();
+        yield();
+      }
       break;
     }
     default: panic("Unhandled syscall ID = %d", a[0]);

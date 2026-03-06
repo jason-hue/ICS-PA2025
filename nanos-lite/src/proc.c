@@ -23,9 +23,9 @@ void init_proc() {
   switch_boot_pcb();
 
   Log("Initializing processes...");
-  char *argv[] = {"/bin/exec-test", NULL};
-  context_uload(&pcb[0], "/bin/exec-test", argv, NULL);
-  context_kload(&pcb[1], hello_fun, (void *)0xdeadbeef);
+  static char *empty_argv[] = {"/bin/nterm", NULL};
+  static char *empty_envp[] = {NULL};
+  context_uload(&pcb[0], "/bin/nterm", empty_argv, empty_envp);
 }
 static int ptr = MAX_NR_PROC - 1;
 Context* schedule(Context *prev) {
