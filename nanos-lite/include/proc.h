@@ -24,4 +24,5 @@ void naive_uload(PCB *pcb, const char *filename);
 void context_kload(PCB *pcb, void (*entry)(void *), void *arg);
 Context* schedule(Context *prev);
 uintptr_t loader(PCB *pcb, const char *filename);
-void context_uload(PCB *pcb, const char *filename);
+void context_uload(PCB *pcb, const char *filename, char *const argv[], char *const envp[]);
+void switch_boot_pcb();

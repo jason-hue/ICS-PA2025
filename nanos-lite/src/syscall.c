@@ -2,6 +2,7 @@
 #include "syscall.h"
 #include <memory.h>
 #include <sys/time.h>
+#include <proc.h>
 #ifdef STRACE
 static const char *syscall_names[] = {
   "exit", "yield", "open", "read", "write", "kill", "getpid", "close",
@@ -72,6 +73,13 @@ void do_syscall(Context *c) {
         c->GPRx = 0;
         break;
       }
+    case SYS_execve: {
+      context_uload(current, (char *)a[1], (char **)a[2], (char **)a[3]);
+      switch_boot_pcb();
+      yield();
+      c->GPRx = 0;
+      break;
+    }
     default: panic("Unhandled syscall ID = %d", a[0]);
   }
 
