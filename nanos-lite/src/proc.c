@@ -23,9 +23,9 @@ void init_proc() {
   switch_boot_pcb();
 
   Log("Initializing processes...");
-  static char *empty_argv[] = {"/bin/nterm", NULL};
+  static char *busybox_argv[] = {"/bin/busybox", "echo", "hello", "navy", NULL};
   static char *empty_envp[] = {NULL};
-  context_uload(&pcb[0], "/bin/nterm", empty_argv, empty_envp);
+  context_uload(&pcb[0], "/bin/busybox", busybox_argv, empty_envp);
 }
 static int ptr = MAX_NR_PROC - 1;
 Context* schedule(Context *prev) {
@@ -76,11 +76,11 @@ static uintptr_t setup_stack(void * stack_top, char * const * argv, char * const
 }
 
 void context_uload(PCB *pcb, const char *filename, char *const argv[], char *const envp[]) {
-  void *entry = (void *)loader(pcb, filename);
   void *stack_origin = new_page(8);
   void *stack_top = stack_origin + 32 * 1024;
   uintptr_t arg_addr = setup_stack(stack_top, argv, envp);
   Area kstack = {pcb->stack, pcb->stack + STACK_SIZE};
+  void *entry = (void *)loader(pcb, filename);
   pcb->cp = ucontext(NULL, kstack, entry);
   pcb->cp->eax = (uintptr_t)arg_addr;
 }
