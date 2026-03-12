@@ -12,6 +12,7 @@ AM_TESTS_DIR="am-kernels/tests/am-tests"
 ALU_TESTS_DIR="am-kernels/tests/alu-tests"
 NANOS_LITE_DIR="nanos-lite"
 NAVY_APPS_DIR="navy-apps"
+FCEUX_AM_DIR="fceux-am"
 
 # ---------------------------------------------------------
 # 0. 环境检查与配置解析
@@ -241,6 +242,24 @@ for d in $(ls -d $BENCHMARKS_DIR/*/); do
         echo "Warning: Failed to generate compile_commands.json for benchmark $BENCH_NAME"
     fi
 done
+
+# ---------------------------------------------------------
+# 4.7. 生成 fceux-am 的编译数据库
+# ---------------------------------------------------------
+echo ">>> 4.7. Generating compile_commands.json for fceux-am..."
+if [ -d "$START_DIR/$FCEUX_AM_DIR" ]; then
+    cd "$START_DIR/$FCEUX_AM_DIR"
+    make clean
+    bear -- make $MAKE_FLAGS ARCH=$TARGET_ARCH
+    if [ -f "compile_commands.json" ]; then
+        mv compile_commands.json compile_commands_fceux_am.json
+        JSON_LIST+=("$START_DIR/$FCEUX_AM_DIR/compile_commands_fceux_am.json")
+    else
+        echo "Warning: Failed to generate compile_commands.json in fceux-am"
+    fi
+else
+    echo "Warning: fceux-am directory not found, skipping"
+fi
 
 
 

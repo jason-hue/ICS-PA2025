@@ -10,5 +10,5 @@
 !.gitignore
 !init.sh
 !/gen_compdb.sh
-/fceux-am
+!/fceux-am
 /am-kernels
