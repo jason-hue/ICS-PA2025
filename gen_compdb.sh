@@ -13,6 +13,7 @@ ALU_TESTS_DIR="am-kernels/tests/alu-tests"
 NANOS_LITE_DIR="nanos-lite"
 NAVY_APPS_DIR="navy-apps"
 FCEUX_AM_DIR="fceux-am"
+MGBA_AM_DIR="mgba"
 
 # ---------------------------------------------------------
 # 0. 环境检查与配置解析
@@ -119,8 +120,6 @@ cd "$START_DIR/$TESTS_DIR"
 make clean
 bear -- make $MAKE_FLAGS ARCH=$TARGET_ARCH
 if [ -f "compile_commands.json" ]; then
-    # 这里的 compile_commands.json 就是最终要被覆盖/使用的目标位置
-    # 我们先把它加入列表读取内容，最后脚本会重新生成合并版覆盖它
     JSON_LIST+=("$START_DIR/$TESTS_DIR/compile_commands.json")
 else
     echo "Error: Failed to generate compile_commands.json in cpu-tests"
@@ -261,6 +260,25 @@ else
     echo "Warning: fceux-am directory not found, skipping"
 fi
 
+# ---------------------------------------------------------
+# 4.8. 生成 mgba-am 的编译数据库
+# ---------------------------------------------------------
+echo ">>> 4.8. Generating compile_commands.json for mgba-am..."
+MGBA_ARCH="native"
+if [ -d "$START_DIR/$MGBA_AM_DIR" ]; then
+    cd "$START_DIR/$MGBA_AM_DIR"
+    make clean
+    bear -- make $MAKE_FLAGS ARCH=$MGBA_ARCH
+    if [ -f "compile_commands.json" ]; then
+        mv compile_commands.json compile_commands_mgba_am.json
+        JSON_LIST+=("$START_DIR/$MGBA_AM_DIR/compile_commands_mgba_am.json")
+    else
+        echo "Warning: Failed to generate compile_commands.json in mgba-am"
+    fi
+else
+    echo "Warning: mgba-am directory not found, skipping"
+fi
+
 
 
 # ---------------------------------------------------------
@@ -268,7 +286,7 @@ fi
 # ---------------------------------------------------------
 echo ">>> Merging JSON files..."
 cd "$START_DIR"
-FINAL_JSON="$START_DIR/$TESTS_DIR/compile_commands.json"
+FINAL_JSON="$START_DIR/compile_commands.json"
 
 # 使用 python 进行合并，确保 JSON 格式正确
 python3 -c "
@@ -309,4 +327,3 @@ for f in "${JSON_LIST[@]}"; do
         rm -f "$f"
     fi
 done
-# 注意：不删除 $TESTS_DIR/compile_commands.json，因为那是最终输出结果
