@@ -299,6 +299,8 @@ COMPILER_RT_ABI si_int __paritydi2(di_int a);
 COMPILER_RT_ABI di_int __divdi3(di_int a, di_int b);
 COMPILER_RT_ABI si_int __divsi3(si_int a, si_int b);
 COMPILER_RT_ABI su_int __udivsi3(su_int n, su_int d);
+COMPILER_RT_ABI si_int __clzsi2(si_int a);
+COMPILER_RT_ABI si_int __ctzsi2(si_int a);
 
 COMPILER_RT_ABI su_int __udivmodsi4(su_int a, su_int b, su_int* rem);
 COMPILER_RT_ABI du_int __udivmoddi4(du_int a, du_int b, du_int* rem);
@@ -480,13 +482,13 @@ __udivmoddi4(du_int a, du_int b, du_int* rem)
                 r.s.high = n.s.high & (d.s.high - 1);
                 *rem = r.all;
             }
-            return n.s.high >> __builtin_ctz(d.s.high);
+            return n.s.high >> __ctzsi2(d.s.high);
         }
         /* K K
          * ---
          * K 0
          */
-        sr = __builtin_clz(d.s.high) - __builtin_clz(n.s.high);
+        sr = __clzsi2(d.s.high) - __clzsi2(n.s.high);
         /* 0 <= sr <= n_uword_bits - 2 or sr large */
         if (sr > n_uword_bits - 2)
         {
@@ -517,7 +519,7 @@ __udivmoddi4(du_int a, du_int b, du_int* rem)
                     *rem = n.s.low & (d.s.low - 1);
                 if (d.s.low == 1)
                     return n.all;
-                sr = __builtin_ctz(d.s.low);
+                sr = __ctzsi2(d.s.low);
                 q.s.high = n.s.high >> sr;
                 q.s.low = (n.s.high << (n_uword_bits - sr)) | (n.s.low >> sr);
                 return q.all;
@@ -526,7 +528,7 @@ __udivmoddi4(du_int a, du_int b, du_int* rem)
              * ---
              * 0 K
              */
-            sr = 1 + n_uword_bits + __builtin_clz(d.s.low) - __builtin_clz(n.s.high);
+            sr = 1 + n_uword_bits + __clzsi2(d.s.low) - __clzsi2(n.s.high);
             /* 2 <= sr <= n_udword_bits - 1
              * q.all = n.all << (n_udword_bits - sr);
              * r.all = n.all >> sr;
@@ -560,7 +562,7 @@ __udivmoddi4(du_int a, du_int b, du_int* rem)
              * ---
              * K K
              */
-            sr = __builtin_clz(d.s.high) - __builtin_clz(n.s.high);
+            sr = __clzsi2(d.s.high) - __clzsi2(n.s.high);
             /* 0 <= sr <= n_uword_bits - 1 or sr large */
             if (sr > n_uword_bits - 1)
             {
