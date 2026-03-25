@@ -238,6 +238,29 @@ static inline void update_eflags(int gp_idx, word_t dest, word_t src, word_t res
   }
 }
 
+static inline word_t x86_bsf(word_t value, int width) {
+  word_t bit = 0;
+  word_t limit = width * 8;
+  while (bit < limit) {
+    if (value & ((word_t)1 << bit)) {
+      return bit;
+    }
+    bit++;
+  }
+  return 0;
+}
+
+static inline word_t x86_bsr(word_t value, int width) {
+  word_t bit = width * 8;
+  while (bit > 0) {
+    bit--;
+    if (value & ((word_t)1 << bit)) {
+      return bit;
+    }
+  }
+  return 0;
+}
+
 #define push(val) do { \
 cpu.esp -= w; \
 Mw(cpu.esp, w, val); \
@@ -633,6 +656,24 @@ void _2byte_esc(Decode *s, bool is_operand_size_16) {
   INSTPAT("1011 1111", movsx, E2G, 0, {
     word_t src = (rs != -1 ? Rr(rs, 2) : Mr(addr, 2));
     Rw(rd, w, SEXT(src, 16));
+  });
+  INSTPAT("1011 1100", bsf, E2G, 0, {
+    word_t src = dsrc1;
+    if (src == 0) {
+      cpu.eflags.ZF = 1;
+    } else {
+      cpu.eflags.ZF = 0;
+      Rw(rd, w, x86_bsf(src, w));
+    }
+  });
+  INSTPAT("1011 1101", bsr, E2G, 0, {
+    word_t src = dsrc1;
+    if (src == 0) {
+      cpu.eflags.ZF = 1;
+    } else {
+      cpu.eflags.ZF = 0;
+      Rw(rd, w, x86_bsr(src, w));
+    }
   });
   INSTPAT("1010 0101", shld, cl_G2E, 0, {
     word_t count = imm & 0x1f;

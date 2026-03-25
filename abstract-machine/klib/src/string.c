@@ -59,9 +59,30 @@ int strncmp(const char *s1, const char *s2, size_t n) {
 }
 
 void *memset(void *s, int c, size_t n) {
-  char *p = (char *)s;
+  unsigned char *p = (unsigned char *)s;
+  unsigned char byte = (unsigned char)c;
+
+  while (n > 0 && ((uintptr_t)p & (sizeof(uintptr_t) - 1))) {
+    *p++ = byte;
+    --n;
+  }
+
+  if (n >= sizeof(uintptr_t)) {
+    uintptr_t word = byte;
+    for (size_t i = 1; i < sizeof(uintptr_t); i <<= 1) {
+      word |= word << (i * 8);
+    }
+
+    uintptr_t *wp = (uintptr_t *)p;
+    while (n >= sizeof(uintptr_t)) {
+      *wp++ = word;
+      n -= sizeof(uintptr_t);
+    }
+    p = (unsigned char *)wp;
+  }
+
   while (n-- > 0) {
-    *p++ = c;//先赋值再++
+    *p++ = byte;
   }
   return s;
 }
@@ -89,8 +110,24 @@ void *memcpy(void *out, const void *in, size_t n) {
   unsigned char *dst = (unsigned char *)out;
   const unsigned char *src = (const unsigned char *)in;
 
-  for (size_t i = 0; i < n; i++) {
-    dst[i] = src[i];
+  while (n > 0 && (((uintptr_t)dst | (uintptr_t)src) & (sizeof(uintptr_t) - 1))) {
+    *dst++ = *src++;
+    --n;
+  }
+
+  if (n >= sizeof(uintptr_t)) {
+    uintptr_t *wdst = (uintptr_t *)dst;
+    const uintptr_t *wsrc = (const uintptr_t *)src;
+    while (n >= sizeof(uintptr_t)) {
+      *wdst++ = *wsrc++;
+      n -= sizeof(uintptr_t);
+    }
+    dst = (unsigned char *)wdst;
+    src = (const unsigned char *)wsrc;
+  }
+
+  while (n-- > 0) {
+    *dst++ = *src++;
   }
 
   return out;
