@@ -264,11 +264,10 @@ fi
 # 4.8. 生成 mgba-am 的编译数据库
 # ---------------------------------------------------------
 echo ">>> 4.8. Generating compile_commands.json for mgba-am..."
-MGBA_ARCH="native"
 if [ -d "$START_DIR/$MGBA_AM_DIR" ]; then
     cd "$START_DIR/$MGBA_AM_DIR"
     make clean
-    bear -- make $MAKE_FLAGS ARCH=$MGBA_ARCH
+    bear -- make $MAKE_FLAGS ARCH=$TARGET_ARCH
     if [ -f "compile_commands.json" ]; then
         mv compile_commands.json compile_commands_mgba_am.json
         JSON_LIST+=("$START_DIR/$MGBA_AM_DIR/compile_commands_mgba_am.json")
